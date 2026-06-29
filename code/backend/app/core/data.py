@@ -78,7 +78,7 @@ def load_oni_monthly() -> pd.DataFrame:
         raise FileNotFoundError(f"ONI monthly CSV not found: {ONI_LONG_CSV}")
     df = pd.read_csv(ONI_LONG_CSV)
     df["ONI_Value"] = pd.to_numeric(df["ONI_Value"], errors="coerce")
-    df = df.dropna(subset=["DATE", "ONI_Value"])
+    df = df.dropna(subset=["Date", "ONI_Value"])
     return df.reset_index(drop=True)
 
 
@@ -97,7 +97,7 @@ def palm_with_oni(
         df = df[df["Date"] <= pd.to_datetime(end)]
 
     oni = load_oni_monthly()
-    oni_map = dict(zip(oni["DATE"], oni["ONI_Value"]))
+    oni_map = dict(zip(oni["Date"], oni["ONI_Value"]))
 
     out = []
     for d, c in zip(df["Date"], df["Close"]):
