@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>棕榈油数据中枢 // PALM OIL DATA CORE</title>
+<style>
+  :root {
+    --bg: #05060a;
+    --panel: #0c1018;
+    --neon-cyan: #00f0ff;
+    --neon-magenta: #ff2bd6;
+    --neon-green: #29ff9c;
+    --neon-yellow: #ffe600;
+    --text: #cfe9ef;
+    --muted: #6b7d8a;
+    --border: #16323b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  body {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    color: var(--text);
+    min-height: 100vh;
+    background-image:
+      linear-gradient(rgba(0, 240, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header { text-align: center; margin-bottom: 36px; }
+  h1 {
+    font-size: 34px; letter-spacing: 3px; margin: 0 0 8px;
+    color: #fff;
+    text-shadow: 0 0 8px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+  }
+  h1 .pink { color: var(--neon-magenta); text-shadow: 0 0 8px var(--neon-magenta), 0 0 20px var(--neon-magenta); }
+  .tagline { color: var(--muted); letter-spacing: 2px; font-size: 13px; }
+
+  .status-bar {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    margin: 18px 0 0; font-size: 14px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 6px var(--muted); }
+  .dot.online { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); animation: pulse 1.6s infinite; }
+  .dot.offline { background: var(--neon-magenta); box-shadow: 0 0 10px var(--neon-magenta); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 22px 24px;
+    margin-bottom: 22px;
+    position: relative;
+    box-shadow: 0 0 0 1px rgba(0,240,255,0.05), 0 0 24px rgba(0,240,255,0.05);
+  }
+  .card::before {
+    content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px;
+    background: var(--neon-cyan); box-shadow: 0 0 10px var(--neon-cyan);
+    border-radius: 3px;
+  }
+  .card.magenta::before { background: var(--neon-magenta); box-shadow: 0 0 10px var(--neon-magenta); }
+  .card h2 {
+    margin: 0 0 6px; font-size: 18px; letter-spacing: 1px; color: #fff;
+  }
+  .card .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .card .uri {
+    display: inline-block; font-size: 12px; color: var(--neon-yellow);
+    border: 1px dashed rgba(255,230,0,0.4); padding: 2px 8px; border-radius: 4px;
+    margin-bottom: 14px;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent; color: var(--neon-cyan);
+    border: 1px solid var(--neon-cyan); border-radius: 6px;
+    padding: 10px 18px; font-family: inherit; font-size: 14px; letter-spacing: 1px;
+    cursor: pointer; transition: all .15s ease;
+    text-shadow: 0 0 6px rgba(0,240,255,0.6);
+  }
+  .btn:hover { background: var(--neon-cyan); color: #02121a; box-shadow: 0 0 18px var(--neon-cyan); text-shadow: none; }
+  .btn.magenta { color: var(--neon-magenta); border-color: var(--neon-magenta); text-shadow: 0 0 6px rgba(255,43,214,0.6); }
+  .btn.magenta:hover { background: var(--neon-magenta); color: #1a0214; box-shadow: 0 0 18px var(--neon-magenta); text-shadow: none; }
+
+  .inputs { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+  .inputs label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .inputs input {
+    background: #07101a; border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text); padding: 8px 10px; font-family: inherit; font-size: 13px;
+  }
+  .inputs input:focus { outline: none; border-color: var(--neon-cyan); box-shadow: 0 0 8px rgba(0,240,255,0.4); }
+
+  .result {
+    margin-top: 16px; background: #04090f; border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px; font-size: 13px; min-height: 20px;
+    white-space: pre-wrap; word-break: break-word; color: var(--neon-green);
+    max-height: 320px; overflow: auto;
+  }
+  .result .label { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--neon-cyan); letter-spacing: 1px; }
+  td { color: var(--text); }
+
+  .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 8px; }
+  .meta-item { background: #07101a; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+  .meta-item .k { color: var(--muted); font-size: 11px; }
+  .meta-item .v { color: var(--neon-yellow); font-size: 16px; margin-top: 2px; }
+  .dropzone {
+    margin-top: 12px; padding: 18px; border: 1px dashed rgba(0,240,255,0.45);
+    border-radius: 8px; background: #07101a; text-align: center; color: var(--muted);
+    transition: all .15s ease;
+  }
+  .dropzone.active { border-color: var(--neon-green); box-shadow: 0 0 18px rgba(41,255,156,0.24); color: var(--neon-green); }
+  .dropzone input { display: none; }
+  .dropzone strong { color: var(--neon-cyan); cursor: pointer; }
+
+  ol.steps { padding-left: 20px; line-height: 1.9; }
+  ol.steps code { color: var(--neon-yellow); background: #07101a; padding: 1px 6px; border-radius: 4px; }
+
+  .links { text-align: center; margin-top: 30px; }
+  .links a { color: var(--neon-magenta); text-decoration: none; border-bottom: 1px dotted var(--neon-magenta); margin: 0 12px; font-size: 13px; }
+  .links a:hover { color: var(--neon-cyan); border-color: var(--neon-cyan); }
+  footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 24px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>棕榈油<span class="pink">数据中枢</span></h1>
+    <div class="tagline">PALM OIL × EL NIÑO · DATA CORE · v0.1</div>
+    <div class="status-bar">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">正在连接后端…</span>
+    </div>
+  </header>
+
+  <!-- 这是什么 -->
+  <div class="card">
+    <h2>▍这台后端是干什么的</h2>
+    <div class="sub">
+      它是整个项目的「数据中转站」。负责读取棕榈油价格、厄尔尼诺指数、降水、产量等数据，
+      整理成统一格式，再交给 3D 网页或预测模型使用。你不用手动开 CSV，向它「要数据」即可。
+    </div>
+  </div>
+
+  <!-- 功能 1：在线检测 -->
+  <div class="card">
+    <h2>① 检查后端是否在线</h2>
+    <div class="sub">点一下，确认这台服务器活着。绿灯=正常。</div>
+    <div>
+      <button class="btn" onclick="runCheck()">▶ 运行检测</button>
+    </div>
+    <div class="result" id="checkResult">（点击上方按钮查看结果）</div>
+  </div>
+
+  <!-- 功能 2：棕榈油产量预测 -->
+  <div class="card magenta">
+    <h2>② 预测某月棕榈油产量</h2>
+    <div class="sub">
+      综合历史天气、厄尔尼诺指数、降水、温度和西马温降交互，预测马来西亚棕榈油总产量。
+    </div>
+    <details style="margin-bottom:12px; font-size:12px; color:var(--muted);">
+      <summary style="cursor:pointer; color:var(--neon-cyan);">展开：计算公式与原理</summary>
+      <div style="margin-top:8px; line-height:1.8;">
+        单产 = 截距 + 趋势项 + β<sub>ONI</sub>×ONI(滞后12月) + β<sub>降水</sub>×3月滚动降水距平 + β<sub>温度</sub>×10月滚动气温距平 + β<sub>交互</sub>×西马(10月温度距平×10月降水距平) + 季节月份项<br>
+        总产量 = 单产 × 最新成熟种植面积<br>
+        天气数据优先用 ECMWF 季节预报，缺失则回退历史同期均值（基准情形）。
+      </div>
+    </details>
+    <div class="inputs">
+      <label>目标月份 (YYYY-MM)
+        <input id="predMonth" type="text" placeholder="2026-07" />
+      </label>
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <button class="btn magenta" onclick="runPredict()">▶ 预测产量</button>
+      <button class="btn" onclick="runExplain()">✦ AI 解读</button>
+      <button class="btn" onclick="openPredict3D()">⬡ 查看 3D 柱状图</button>
+    </div>
+    <div id="predMeta" class="meta-grid" style="display:none;"></div>
+    <table id="predTable" style="display:none;">
+      <thead><tr><th>因素</th><th>对单产的贡献 (吨/公顷)</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="result" id="predResult">选择月份，点击预测</div>
+  </div>
+
+  <!-- 功能 3：更新 ECMWF 气候预测文件 -->
+  <div class="card">
+    <h2>③ 更新天气预报文件</h2>
+    <div class="sub">
+      有新的 ECMWF/Copernicus 天气预报文件时，可拖入下方更新模型所用的未来气候输入。
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+      <a class="btn" href="https://cds.climate.copernicus.eu/datasets/seasonal-monthly-single-levels?tab=download" target="_blank" rel="noreferrer">↗ 前往下载（Copernicus）</a>
+    </div>
+    <div class="dropzone" id="forecastDrop">
+      <input id="forecastFile" type="file" accept=".nc" />
+      将 .nc 文件拖到这里，或点击 <strong>选择文件</strong>
+    </div>
+    <div class="result" id="forecastResult">上传后自动解析并刷新预测输入</div>
+  </div>
+
+  <div class="links">
+    <a href="/docs">⚙ 开发者接口文档 /docs</a>
+  </div>
+  <footer>SUNNY 期货实习项目 · 数据中枢 · 棕榈油产量线性预测 + DeepSeek 解读</footer>
+</div>
+
+<script>
+  // 用相对路径，本页和后端同源，无跨域问题
+  async function runCheck() {
+    const box = document.getElementById('checkResult');
+    box.textContent = '请求中…';
+    try {
+      const r = await fetch('/check');
+      const d = await r.json();
+      box.innerHTML =
+        '<span class="label">服务名 </span>' + (d.service ?? '-') + '\n' +
+        '<span class="label">版本   </span>' + (d.version ?? '-') + '\n' +
+        '<span class="label">状态   </span>' + (d.status ?? '-') + '\n' +
+        '<span class="label">提示   </span>' + (d.message ?? '-');
+    } catch (e) {
+      box.textContent = '✗ 连接失败：' + e;
+    }
+  }
+
+  const CONTRIB_LABELS = {
+    seasonality: '季节性（月份）',
+    trend: '结构性趋势',
+    ONI: '厄尔尼诺 ONI',
+    PRCP: '降水距平',
+    TAVG: '10月气温距平',
+    INTX_West: '西马温×降交互',
+    intercept: '基准截距',
+  };
+  const WEATHER_LABELS = {
+    ecmwf_seasonal_forecast: 'ECMWF 季节预报',
+    ecmwf_with_baseline_fallback: 'ECMWF 预报（部分月份用历史常态补齐）',
+    observed_history: '历史实测天气',
+    seasonal_climatology_baseline: '历史同期常态（基准情形）',
+    mixed_history_and_baseline: '历史实测与基准混合',
+  };
+  function defaultMonth() {
+    const now = new Date();
+    let y = now.getFullYear(), m = now.getMonth() + 2;
+    if (m > 12) { m -= 12; y += 1; }
+    return y + '-' + String(m).padStart(2, '0');
+  }
+
+  function normalizeMonthInput(raw) {
+    const s = String(raw ?? '').trim();
+    const m = s.match(/^(\d{4})-(\d{1,2})$/);
+    if (!m) return s;
+    const month = Number(m[2]);
+    if (!Number.isFinite(month) || month < 1 || month > 12) return s;
+    return m[1] + '-' + String(month).padStart(2, '0');
+  }
+
+  function apiErrorMessage(detail) {
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item?.msg ?? JSON.stringify(item)).join('；');
+    }
+    if (detail && typeof detail === 'object') return JSON.stringify(detail);
+    return '未知错误';
+  }
+
+  function renderPrediction(d) {
+    const meta = document.getElementById('predMeta');
+    const table = document.getElementById('predTable');
+    const yieldVal = Number(d.predicted_yield ?? 0);
+    const tonnes = Number(d.predicted_production_tonnes ?? 0);
+    const weather = WEATHER_LABELS[d.weather_source] ?? (d.weather_source ?? '-');
+
+    meta.style.display = 'grid';
+    meta.innerHTML =
+      '<div class="meta-item"><div class="k">目标月份</div><div class="v">' + (d.target_month ?? '-') + '</div></div>' +
+      '<div class="meta-item"><div class="k">预测单产 (吨/公顷)</div><div class="v">' + yieldVal.toFixed(4) + '</div></div>' +
+      '<div class="meta-item"><div class="k">预测总产量 (吨)</div><div class="v">' + Math.round(tonnes).toLocaleString() + '</div></div>' +
+      '<div class="meta-item"><div class="k">成熟面积 (' + (d.mature_area_year ?? '-') + ')</div><div class="v">' + Math.round(Number(d.mature_area_hectares ?? 0)).toLocaleString() + '</div></div>' +
+      '<div class="meta-item"><div class="k">天气来源</div><div class="v" style="font-size:12px;">' + weather + '</div></div>';
+
+    const contrib = d.contributions ?? {};
+    const order = ['seasonality', 'trend', 'ONI', 'PRCP', 'TAVG', 'INTX_West', 'intercept'];
+    const body = table.querySelector('tbody');
+    body.innerHTML = order
+      .filter((k) => k in contrib)
+      .map((k) => {
+        const v = Number(contrib[k] ?? 0);
+        const color = v > 0 ? 'var(--neon-green)' : (v < 0 ? 'var(--neon-magenta)' : 'var(--muted)');
+        const sign = v > 0 ? '+' : '';
+        return '<tr><td>' + (CONTRIB_LABELS[k] ?? k) + '</td><td style="color:' + color + '">' + sign + v.toFixed(5) + '</td></tr>';
+      })
+      .join('');
+    table.style.display = 'table';
+  }
+
+  async function runPredict() {
+    const input = document.getElementById('predMonth');
+    const month = normalizeMonthInput(input.value);
+    input.value = month;
+    const box = document.getElementById('predResult');
+    box.style.color = 'var(--neon-green)';
+    box.textContent = '模型计算中…';
+    try {
+      const r = await fetch('/predict-production?target_month=' + encodeURIComponent(month));
+      const d = await r.json();
+      if (!r.ok) { throw new Error(apiErrorMessage(d.detail) || ('HTTP ' + r.status)); }
+      renderPrediction(d);
+      box.style.color = 'var(--neon-green)';
+      box.textContent = '✓ 预测完成。点击「AI 解读」获取中文分析。';
+    } catch (e) {
+      box.style.color = 'var(--neon-magenta)';
+      box.textContent = '✗ 预测失败：' + e;
+    }
+  }
+
+  async function runExplain() {
+    const input = document.getElementById('predMonth');
+    const month = normalizeMonthInput(input.value);
+    input.value = month;
+    const box = document.getElementById('predResult');
+    box.style.color = 'var(--text)';
+    box.textContent = 'AI 解读生成中…（首次调用 DeepSeek 可能稍慢）';
+    try {
+      const r = await fetch('/predict-explain?target_month=' + encodeURIComponent(month));
+      const d = await r.json();
+      if (!r.ok) { throw new Error(apiErrorMessage(d.detail) || ('HTTP ' + r.status)); }
+      renderPrediction(d.prediction ?? {});
+      const tag = d.llm_source === 'deepseek' ? 'DeepSeek' : '本地规则解读';
+      box.style.color = 'var(--text)';
+      box.textContent =
+        '【解读来源：' + tag + '】\n\n' +
+        (d.explanation ?? '') + (d.note ? ('\n\n注：' + d.note) : '');
+    } catch (e) {
+      box.style.color = 'var(--neon-magenta)';
+      box.textContent = '✗ 解读失败：' + e;
+    }
+  }
+
+  function openPredict3D() {
+    const input = document.getElementById('predMonth');
+    const month = normalizeMonthInput(input.value || defaultMonth());
+    input.value = month;
+    window.open('/3d?start_month=' + encodeURIComponent(month) + '&months=6', '_blank');
+  }
+
+  async function uploadForecastFile(file) {
+    const box = document.getElementById('forecastResult');
+    if (!file) {
+      box.style.color = 'var(--neon-magenta)';
+      box.textContent = '✗ 没有选择文件';
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith('.nc')) {
+      box.style.color = 'var(--neon-magenta)';
+      box.textContent = '✗ 非需要的文件：请上传 Copernicus/ECMWF 的 .nc 文件';
+      return;
+    }
+
+    const form = new FormData();
+    form.append('file', file);
+    box.style.color = 'var(--neon-yellow)';
+    box.textContent = '正在上传并识别文件…解析 NetCDF 和重打包 Excel 可能需要 1-3 分钟。';
+    try {
+      const r = await fetch('/update-climate-forecast', { method: 'POST', body: form });
+      const d = await r.json();
+      if (!r.ok) { throw new Error(apiErrorMessage(d.detail) || ('HTTP ' + r.status)); }
+      box.style.color = 'var(--neon-green)';
+      box.textContent =
+        '✓ 更新完成\n' +
+        '目标月份：' + (d.target_months ?? []).join(', ') + '\n' +
+        '起报日期：' + (d.reference_date ?? '-') + '\n' +
+        'lead months：' + (d.lead_months ?? []).join(', ') + '\n' +
+        '网格行数：' + Number(d.rows_grid ?? 0).toLocaleString() + '\n' +
+        '气候 Excel：' + (d.climate_excel ?? '-') + '\n\n' +
+        '现在可以重新运行预测或打开 3D 模型。';
+    } catch (e) {
+      box.style.color = 'var(--neon-magenta)';
+      box.textContent = '✗ 更新失败：' + e;
+    }
+  }
+
+  const forecastDrop = document.getElementById('forecastDrop');
+  const forecastFile = document.getElementById('forecastFile');
+  forecastDrop.addEventListener('click', () => forecastFile.click());
+  forecastFile.addEventListener('change', () => uploadForecastFile(forecastFile.files?.[0]));
+  forecastDrop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    forecastDrop.classList.add('active');
+  });
+  forecastDrop.addEventListener('dragleave', () => forecastDrop.classList.remove('active'));
+  forecastDrop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    forecastDrop.classList.remove('active');
+    uploadForecastFile(e.dataTransfer?.files?.[0]);
+  });
+
+  document.getElementById('predMonth').value = defaultMonth();
+
+  // 进页面自动探测在线状态
+  (async function probe() {
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    try {
+      const r = await fetch('/check');
+      const d = await r.json();
+      dot.className = 'dot online';
+      txt.textContent = '后端在线 · ' + (d.service ?? '') + ' v' + (d.version ?? '');
+    } catch (e) {
+      dot.className = 'dot offline';
+      txt.textContent = '后端离线（请先启动服务）';
+    }
+  })();
+</script>
+</body>
+</html>

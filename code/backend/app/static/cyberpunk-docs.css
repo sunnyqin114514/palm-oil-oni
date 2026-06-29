@@ -1,0 +1,53 @@
+/* 赛博朋克暗色主题 — 注入到 FastAPI Swagger /docs */
+body, .swagger-ui {
+  background: #05060a !important;
+  color: #cfe9ef !important;
+  font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace !important;
+}
+.swagger-ui .topbar { background: #0c1018 !important; border-bottom: 1px solid #00f0ff44 !important; }
+.swagger-ui .info .title,
+.swagger-ui .info h1, .swagger-ui .info h2,
+.swagger-ui .opblock-tag,
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui table thead tr td, .swagger-ui table thead tr th,
+.swagger-ui .response-col_status,
+.swagger-ui label, .swagger-ui .parameter__name {
+  color: #cfe9ef !important;
+}
+.swagger-ui .info .title { text-shadow: 0 0 10px #00f0ff; }
+.swagger-ui .info .description, .swagger-ui .markdown p { color: #8fb3bd !important; }
+
+/* GET 方块：霓虹青 */
+.swagger-ui .opblock.opblock-get {
+  background: #0c1018 !important;
+  border: 1px solid #00f0ff66 !important;
+  box-shadow: 0 0 14px #00f0ff22 !important;
+}
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+  background: #00f0ff !important; color: #02121a !important;
+}
+
+/* Schemas / models */
+.swagger-ui section.models, .swagger-ui .model-box {
+  background: #0c1018 !important; border: 1px solid #ff2bd644 !important;
+}
+.swagger-ui .model-title, .swagger-ui .model { color: #ff2bd6 !important; }
+
+/* 按钮 */
+.swagger-ui .btn {
+  background: transparent !important; color: #29ff9c !important;
+  border: 1px solid #29ff9c !important; box-shadow: 0 0 8px #29ff9c44 !important;
+}
+.swagger-ui .btn.execute {
+  background: #29ff9c !important; color: #02140c !important; border: none !important;
+}
+.swagger-ui .btn.authorize { color: #ffe600 !important; border-color: #ffe600 !important; }
+
+/* 输入框 / 代码块 */
+.swagger-ui input, .swagger-ui textarea, .swagger-ui select {
+  background: #07101a !important; color: #cfe9ef !important; border: 1px solid #16323b !important;
+}
+.swagger-ui .highlight-code, .swagger-ui .microlight, .swagger-ui pre {
+  background: #04090f !important; color: #29ff9c !important;
+}
+.swagger-ui .scheme-container { background: #0c1018 !important; box-shadow: none !important; }

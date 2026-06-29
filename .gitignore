@@ -1,0 +1,27 @@
+# Python
+code/backend/.venv/
+**/__pycache__/
+**/*.pyc
+**/.ipynb_checkpoints/
+
+# Node
+code/frontend/node_modules/
+code/frontend/dist/
+code/frontend/.vite/
+
+# OS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Local env / secrets
+.env
+.env.local
+secrets/
+**/ifind_tokens.json
+**/.ifind_cache/
+
+# Big data files (Day4/Day5 已经在仓库里就不忽略；这里只忽略将来可能的大文件)
+*.xlsx~

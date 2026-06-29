@@ -1,0 +1,21 @@
+# Render Blueprint for the Palm Oil x ONI prediction website.
+# Docs: https://render.com/docs/blueprint-spec
+# Deploy: push this repo to GitHub, then in Render dashboard:
+#   New -> Blueprint -> select this repo. Render reads render.yaml automatically.
+
+services:
+  - type: web
+    name: palm-oil-oni
+    runtime: python
+    rootDir: code/backend
+    plan: free
+    # Python runtime version (match local .venv 3.9.x)
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.23
+      - key: DEEPSEEK_API_KEY
+        sync: false  # set manually in Render dashboard (optional; without it LLM degrades to local rules)
+    buildCommand: pip install --upgrade pip && pip install -r requirements-render.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /check
+    autoDeploy: true

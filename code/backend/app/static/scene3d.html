@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>3D 预测柱状图 // M2 三维模型 × 西马温降交互</title>
+<style>
+  :root {
+    --bg: #05060a; --panel: #0c1018cc; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --green: #29ff9c; --yellow: #ffe600; --text: #cfe9ef; --muted: #6b7d8a; --border: #16323b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); overflow: hidden;
+    font-family: "SF Mono","JetBrains Mono",Menlo,Consolas,monospace; color: var(--text);
+  }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; }
+  .hud { position: fixed; z-index: 10; pointer-events: none; }
+  .topbar {
+    top: 0; left: 0; right: 0; padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(#05060aee, #05060a00);
+  }
+  .topbar .title { font-size: 16px; color: #fff; letter-spacing: 2px; text-shadow: 0 0 10px var(--cyan); }
+  .topbar .range { font-size: 12px; color: var(--yellow); margin-top: 4px; }
+  .topbar a {
+    pointer-events: auto; color: var(--magenta); text-decoration: none; font-size: 12px;
+    border: 1px solid var(--magenta); border-radius: 5px; padding: 6px 12px;
+  }
+  .topbar a:hover { background: var(--magenta); color: #1a0214; }
+  .legend {
+    left: 18px; bottom: 18px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; font-size: 12px; line-height: 1.8; max-width: 430px;
+    backdrop-filter: blur(4px);
+  }
+  .legend .ax { display: flex; align-items: center; gap: 8px; }
+  .legend .swatch { width: 18px; height: 3px; border-radius: 2px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend .note { color: var(--muted); margin-top: 6px; font-size: 11px; }
+  .controls {
+    right: 18px; bottom: 18px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; font-size: 12px; pointer-events: auto;
+    display: flex; flex-direction: column; gap: 10px; min-width: 260px; backdrop-filter: blur(4px);
+  }
+  .controls .inputs { display: grid; grid-template-columns: 1fr 70px; gap: 8px; }
+  .controls input[type=text], .controls input[type=number] {
+    background: #07101a; border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text); padding: 7px 8px; font-family: inherit; font-size: 12px;
+  }
+  .controls .btnrow { display: flex; gap: 8px; }
+  .controls button {
+    flex: 1; background: transparent; color: var(--cyan); border: 1px solid var(--cyan);
+    border-radius: 5px; padding: 7px 0; font-family: inherit; font-size: 12px; cursor: pointer;
+  }
+  .controls button:hover { background: var(--cyan); color: #02121a; }
+  .controls .toggle { display: flex; align-items: center; gap: 6px; color: var(--text); cursor: pointer; }
+  .status {
+    top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center;
+    color: var(--muted); font-size: 14px;
+  }
+  .status .err { color: var(--magenta); }
+  .tooltip {
+    position: fixed; z-index: 100; pointer-events: none;
+    background: #0c1018ee; border: 1px solid var(--cyan); border-radius: 6px;
+    padding: 10px 14px; font-size: 12px; line-height: 1.7; max-width: 360px;
+    backdrop-filter: blur(6px); display: none;
+    box-shadow: 0 0 16px rgba(0,240,255,0.2);
+  }
+  .tooltip .tt-month { color: var(--cyan); font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; }
+  .tooltip .tt-k { color: var(--muted); }
+  .tooltip .tt-v { color: var(--text); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="hud topbar">
+  <div>
+    <div class="title">棕榈油 3D 预测柱状图 · M2 三维模型</div>
+    <div class="range" id="rangeText">加载中…</div>
+  </div>
+  <a href="/">← 返回首页</a>
+</div>
+
+<div class="hud legend">
+  <div class="ax"><span class="swatch" style="background:#00f0ff"></span> 横轴 = 月份</div>
+  <div class="ax"><span class="swatch" style="background:#29ff9c"></span> 柱高 = 预测产量（吨）</div>
+  <div class="ax"><span class="swatch" style="background:#ffffff"></span> 柱身主色 = 当月主导影响因子</div>
+  <div class="ax"><span class="swatch" style="background:#4da3ff"></span> ONI 光带</div>
+  <div class="ax"><span class="swatch" style="background:#00f0ff"></span> 降水光带</div>
+  <div class="ax"><span class="swatch" style="background:#ff9f1c"></span> 10月温度光带</div>
+  <div class="ax"><span class="swatch" style="background:#ff2bd6"></span> 西马温×降交互光带</div>
+  <div class="note" id="statText"></div>
+  <div class="note">光带越高 = 贡献绝对值越大；前侧 = 拉高产量，后侧 = 拉低产量。</div>
+  <div class="note">模型 = M2_spatial：ONI_lag12 + PRCP_DEV_3m + TAVG_DEV_10m + INTX_West_10m</div>
+</div>
+
+<div class="hud controls">
+  <div class="inputs">
+    <input id="startMonth" type="text" placeholder="2026-07" title="起始月份" />
+    <input id="monthCount" type="number" value="6" min="1" max="24" title="预测月数" />
+  </div>
+  <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:-6px;">
+    <span>起始月份</span><span>月数</span>
+  </div>
+  <div class="btnrow">
+    <button id="reloadBtn">▶ 载入预测</button>
+  </div>
+  <label class="toggle"><input type="checkbox" id="spin" checked /> 自动旋转</label>
+</div>
+
+<div class="hud status" id="status">正在拉取预测数据…</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+
+function defaultMonth() {
+  const now = new Date();
+  let y = now.getFullYear(), m = now.getMonth() + 2;
+  if (m > 12) { m -= 12; y += 1; }
+  return y + "-" + String(m).padStart(2, "0");
+}
+
+function normalizeMonthInput(raw) {
+  const s = String(raw ?? "").trim();
+  const m = s.match(/^(\d{4})-(\d{1,2})$/);
+  if (!m) return s;
+  const month = Number(m[2]);
+  if (!Number.isFinite(month) || month < 1 || month > 12) return s;
+  return m[1] + "-" + String(month).padStart(2, "0");
+}
+
+function apiErrorMessage(detail) {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map((item) => item?.msg ?? JSON.stringify(item)).join("；");
+  if (detail && typeof detail === "object") return JSON.stringify(detail);
+  return "未知错误";
+}
+
+const FACTORS = [
+  { key: "ONI", label: "ONI", color: 0x4da3ff },
+  { key: "PRCP", label: "降水", color: 0x00f0ff },
+  { key: "TAVG", label: "10月温度", color: 0xff9f1c },
+  { key: "INTX_West", label: "西马温×降", color: 0xff2bd6 },
+];
+const DEFAULT_BAR_COLOR = new THREE.Color(0x1f4e78);
+const WEATHER_LABELS = {
+  ecmwf_seasonal_forecast: "ECMWF 季节预报",
+  ecmwf_with_baseline_fallback: "ECMWF + 历史常态补齐",
+  observed_history: "历史实测/已聚合观测",
+  seasonal_climatology_baseline: "历史同期常态",
+  mixed_history_and_baseline: "历史实测与基准混合",
+};
+
+const qs = new URLSearchParams(location.search);
+const initialStart = qs.get("start_month") ?? qs.get("start") ?? defaultMonth();
+const initialMonths = Number(qs.get("months") ?? 6);
+document.getElementById("startMonth").value = normalizeMonthInput(initialStart);
+document.getElementById("monthCount").value = Math.min(24, Math.max(1, initialMonths));
+
+const statusEl = document.getElementById("status");
+const rangeText = document.getElementById("rangeText");
+const statText = document.getElementById("statText");
+const tooltipEl = document.getElementById("tooltip");
+
+let renderer = null, labelRenderer = null, scene = null, camera = null, animationId = null;
+let barMeshes = [], rowData = [], raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let hoveredIdx = -1;
+let apiSource = "";
+
+init();
+document.getElementById("reloadBtn").addEventListener("click", () => init());
+
+async function init() {
+  const startInput = document.getElementById("startMonth");
+  const startMonth = normalizeMonthInput(startInput.value || defaultMonth());
+  startInput.value = startMonth;
+  const months = Math.min(24, Math.max(1, Number(document.getElementById("monthCount").value || 6)));
+  statusEl.style.display = "block";
+  statusEl.textContent = "正在拉取预测数据…";
+  cleanupScene();
+
+  const url = "/predict-production-range?start_month=" + encodeURIComponent(startMonth)
+    + "&months=" + encodeURIComponent(months);
+
+  let data;
+  try {
+    const r = await fetch(url);
+    data = await r.json();
+    if (!r.ok) throw new Error(apiErrorMessage(data.detail) || r.status);
+  } catch (e) {
+    statusEl.innerHTML = '<span class="err">✗ 拉取失败：' + e + "</span>";
+    return;
+  }
+
+  apiSource = data.source ?? "";
+  rowData = (data.rows || []).map((row) => {
+    const c = row.contributions ?? {};
+    const factorValues = Object.fromEntries(
+      FACTORS.map((f) => [f.key, Number(c[f.key] ?? 0)])
+    );
+    const climateScore = Object.values(factorValues).reduce((sum, v) => sum + Math.abs(v), 0);
+    const dominantFactor = FACTORS.reduce((best, f) => (
+      Math.abs(factorValues[f.key]) > Math.abs(factorValues[best.key]) ? f : best
+    ), FACTORS[0]);
+    const model = row.model ?? {};
+    const inputs = row.inputs ?? {};
+    return {
+      ...row,
+      climateScore,
+      factorValues,
+      dominantFactor,
+      production: Number(row.predicted_production_tonnes ?? 0),
+      modelName: model.model_name ?? "M2_spatial",
+      modelFeatures: model.features ?? [],
+      tavg10: Number(inputs.tavg_dev_10m ?? 0),
+      prcp3: Number(inputs.prcp_dev_3m ?? 0),
+      intxWest10: Number(inputs.intx_west_10m ?? 0),
+    };
+  });
+
+  if (rowData.length === 0) {
+    statusEl.innerHTML = '<span class="err">该区间没有预测数据</span>';
+    return;
+  }
+  statusEl.style.display = "none";
+  renderScene();
+}
+
+function renderScene() {
+  const N = rowData.length;
+  const productions = rowData.map(d => d.production);
+  const maxP = Math.max(...productions);
+  const minP = Math.min(...productions);
+  const maxFactorAbs = Math.max(
+    0.000001,
+    ...rowData.flatMap((row) => Object.values(row.factorValues).map((v) => Math.abs(v)))
+  );
+  const start = rowData[0].target_month;
+  const end = rowData[N - 1].target_month;
+
+  const modelName = rowData[0]?.modelName ?? "M2_spatial";
+  rangeText.textContent = start + " → " + end + " · 共 " + N + " 个月 · " + modelName;
+  statText.textContent = "产量范围 " + Math.round(minP).toLocaleString() + " ~ " + Math.round(maxP).toLocaleString() + " 吨 · " + (apiSource || "三维预测模型");
+
+  const app = document.getElementById("app");
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x05060a);
+  scene.fog = new THREE.FogExp2(0x05060a, 0.003);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  app.appendChild(renderer.domElement);
+
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = "absolute";
+  labelRenderer.domElement.style.top = "0";
+  labelRenderer.domElement.style.pointerEvents = "none";
+  app.appendChild(labelRenderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.8;
+  controls.target.set(0, 12, 0);
+
+  document.getElementById("spin").onchange = (e) => { controls.autoRotate = e.target.checked; };
+
+  const BAR_WIDTH = 4;
+  const BAR_GAP = 3;
+  const totalWidth = N * BAR_WIDTH + (N - 1) * BAR_GAP;
+  const startX = -totalWidth / 2 + BAR_WIDTH / 2;
+  const MAX_HEIGHT = 36;
+
+  const grid = new THREE.GridHelper(totalWidth + 30, N + 4, 0x16323b, 0x0c1c24);
+  grid.position.y = 0;
+  scene.add(grid);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(30, 50, 40);
+  scene.add(dirLight);
+
+  barMeshes = [];
+
+  for (let i = 0; i < N; i++) {
+    const row = rowData[i];
+    const heightNorm = maxP === minP ? 0.5 : (row.production - minP) / (maxP - minP);
+    const barH = 2 + heightNorm * MAX_HEIGHT;
+    const x = startX + i * (BAR_WIDTH + BAR_GAP);
+    const dominantValue = row.factorValues[row.dominantFactor.key] ?? 0;
+    const color = Math.abs(dominantValue) > 0 ? new THREE.Color(row.dominantFactor.color) : DEFAULT_BAR_COLOR;
+
+    const geo = new THREE.BoxGeometry(BAR_WIDTH, barH, BAR_WIDTH);
+    const mat = new THREE.MeshPhongMaterial({
+      color: color,
+      emissive: color,
+      emissiveIntensity: 0.32,
+      transparent: true,
+      opacity: 0.88,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, barH / 2, 0);
+    mesh.userData = { idx: i };
+    scene.add(mesh);
+    barMeshes.push(mesh);
+
+    const labelDiv = document.createElement("div");
+    labelDiv.style.cssText = "font-size:10px; color:" + color.getStyle() + "; text-align:center; pointer-events:none; text-shadow: 0 0 6px " + color.getStyle() + ";";
+    labelDiv.innerHTML = row.target_month.slice(5) + "月<br><span style='font-size:9px; opacity:0.78;'>" + row.dominantFactor.label + "</span>";
+    const labelObj = new CSS2DObject(labelDiv);
+    labelObj.position.set(x, -2, 0);
+    scene.add(labelObj);
+
+    const stripOffsets = [-1.35, -0.45, 0.45, 1.35];
+    const stripMaxH = MAX_HEIGHT * 0.48;
+    FACTORS.forEach((f, j) => {
+      const value = row.factorValues[f.key] ?? 0;
+      const absNorm = Math.min(1, Math.abs(value) / maxFactorAbs);
+      const stripH = 0.35 + absNorm * stripMaxH;
+      const stripColor = new THREE.Color(f.color);
+      const stripGeo = new THREE.BoxGeometry(0.34, stripH, 0.34);
+      const stripMat = new THREE.MeshPhongMaterial({
+        color: stripColor,
+        emissive: stripColor,
+        emissiveIntensity: 0.55,
+        transparent: true,
+        opacity: 0.28 + absNorm * 0.62,
+      });
+      const strip = new THREE.Mesh(stripGeo, stripMat);
+      const signZ = value >= 0 ? 1 : -1;
+      strip.position.set(x + stripOffsets[j], stripH / 2, signZ * (BAR_WIDTH / 2 + 0.72));
+      scene.add(strip);
+    });
+  }
+
+  const axLenX = totalWidth / 2 + 8;
+  addAxisLine(scene, new THREE.Vector3(-axLenX, 0, 0), new THREE.Vector3(axLenX, 0, 0), 0x00f0ff);
+  addAxisLine(scene, new THREE.Vector3(-axLenX, 0, 0), new THREE.Vector3(-axLenX, MAX_HEIGHT + 8, 0), 0x29ff9c);
+
+  const yLabelDiv = document.createElement("div");
+  yLabelDiv.style.cssText = "font-size:11px; color:#29ff9c; text-shadow:0 0 6px #29ff9c;";
+  yLabelDiv.textContent = "产量 ↑";
+  const yLabel = new CSS2DObject(yLabelDiv);
+  yLabel.position.set(-axLenX - 2, MAX_HEIGHT + 10, 0);
+  scene.add(yLabel);
+
+  const xLabelDiv = document.createElement("div");
+  xLabelDiv.style.cssText = "font-size:11px; color:#00f0ff; text-shadow:0 0 6px #00f0ff;";
+  xLabelDiv.textContent = "月份 →";
+  const xLabel = new CSS2DObject(xLabelDiv);
+  xLabel.position.set(axLenX + 3, -2, 0);
+  scene.add(xLabel);
+
+  camera.position.set(totalWidth * 0.6, MAX_HEIGHT * 1.1, totalWidth * 0.9);
+  controls.update();
+
+  window.onresize = () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  };
+
+  renderer.domElement.addEventListener("pointermove", onPointerMove);
+
+  function animate() {
+    animationId = requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+  }
+  animate();
+}
+
+function onPointerMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(barMeshes);
+  if (intersects.length > 0) {
+    const idx = intersects[0].object.userData.idx;
+    if (idx !== hoveredIdx) {
+      hoveredIdx = idx;
+      showTooltip(event.clientX, event.clientY, rowData[idx]);
+    } else {
+      tooltipEl.style.left = (event.clientX + 14) + "px";
+      tooltipEl.style.top = (event.clientY + 14) + "px";
+    }
+  } else {
+    hoveredIdx = -1;
+    tooltipEl.style.display = "none";
+  }
+}
+
+function showTooltip(x, y, row) {
+  const c = row.contributions ?? {};
+  tooltipEl.innerHTML =
+    '<div class="tt-month">' + row.target_month + '</div>' +
+    '<div class="tt-row"><span class="tt-k">预测产量</span><span class="tt-v">' + Math.round(row.production).toLocaleString() + ' 吨</span></div>' +
+    '<div class="tt-row"><span class="tt-k">预测单产</span><span class="tt-v">' + Number(row.predicted_yield ?? 0).toFixed(4) + ' 吨/公顷</span></div>' +
+    '<div class="tt-row"><span class="tt-k">模型</span><span class="tt-v">' + (row.modelName ?? 'M2_spatial') + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">主导因子</span><span class="tt-v">' + (row.dominantFactor?.label ?? '-') + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">天气影响合计</span><span class="tt-v">' + row.climateScore.toFixed(5) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">ONI 贡献</span><span class="tt-v">' + Number(c.ONI ?? 0).toFixed(5) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">降水贡献</span><span class="tt-v">' + Number(c.PRCP ?? 0).toFixed(5) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">10月温度贡献</span><span class="tt-v">' + Number(c.TAVG ?? 0).toFixed(5) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">西马温×降贡献</span><span class="tt-v">' + Number(c.INTX_West ?? 0).toFixed(5) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">PRCP_DEV_3m</span><span class="tt-v">' + Number(row.prcp3 ?? 0).toFixed(2) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">TAVG_DEV_10m</span><span class="tt-v">' + Number(row.tavg10 ?? 0).toFixed(3) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">INTX_West_10m</span><span class="tt-v">' + Number(row.intxWest10 ?? 0).toFixed(3) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-k">天气来源</span><span class="tt-v">' + (WEATHER_LABELS[row.weather_source] ?? row.weather_source ?? '-') + '</span></div>';
+  tooltipEl.style.display = "block";
+  tooltipEl.style.left = (x + 14) + "px";
+  tooltipEl.style.top = (y + 14) + "px";
+}
+
+function cleanupScene() {
+  hoveredIdx = -1;
+  tooltipEl.style.display = "none";
+  barMeshes = [];
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  if (renderer) {
+    renderer.domElement.removeEventListener("pointermove", onPointerMove);
+    renderer.dispose();
+    renderer.domElement.remove();
+    renderer = null;
+  }
+  if (labelRenderer) {
+    labelRenderer.domElement.remove();
+    labelRenderer = null;
+  }
+  scene = null;
+  camera = null;
+}
+
+function addAxisLine(s, a, b, color) {
+  const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+  const m = new THREE.LineBasicMaterial({ color, linewidth: 2 });
+  s.add(new THREE.Line(g, m));
+}
+</script>
+</body>
+</html>

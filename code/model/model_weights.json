@@ -1,0 +1,83 @@
+{
+  "intercept": 0.26672115703991217,
+  "coef": {
+    "Trend": -0.000179276677651846,
+    "ONI_lag12": -0.005811244183871776,
+    "PRCP_DEV_3m_lag0": 0.00015415813586762373,
+    "TAVG_DEV_3m_lag0": 0.01734158096004032,
+    "month_2": -0.016031517427993237,
+    "month_3": 0.023335012166028582,
+    "month_4": 0.042772124190677274,
+    "month_5": 0.05926298601193818,
+    "month_6": 0.053536149148741365,
+    "month_7": 0.07514258270807032,
+    "month_8": 0.09596895840910874,
+    "month_9": 0.09959225087768281,
+    "month_10": 0.10981779445260305,
+    "month_11": 0.07697309030474037,
+    "month_12": 0.04977709122163765
+  },
+  "baseline_month": 1,
+  "trained_window": "2015-01..2025-12",
+  "n_obs": 132,
+  "climatology": {
+    "source": "NASA POWER monthly (climate Excel 01_MY_PRCP_History / 02_MY_TAVG_History)",
+    "method": "same-calendar-month mean"
+  },
+  "trend": {
+    "feature": "Trend",
+    "baseline_ym": "2015-01",
+    "unit": "months since baseline",
+    "purpose": "absorb structural year-over-year yield growth so climate signal is not polluted"
+  },
+  "rolling_window": {
+    "PRCP_DEV_3m": "3-month rolling mean of PRCP_DEV (mm/month)",
+    "TAVG_DEV_3m": "3-month rolling mean of TAVG_DEV (degC)",
+    "rationale": "palm yield responds to cumulative climate stress, not single-month spikes"
+  },
+  "selected_lags": {
+    "ONI": 12,
+    "PRCP_DEV_3m": 0,
+    "TAVG_DEV_3m": 0,
+    "meaning": "target month uses climate information from target month minus lag months"
+  },
+  "metrics": {
+    "r2": 0.6504731834214155,
+    "r2_adj": 0.6052757502431502,
+    "aic": -538.9637530996015,
+    "bic": -492.83892233821956,
+    "lead_validation_test_rmse": 0.06200537932408917
+  },
+  "p_values": {
+    "const": 1.1546156829607796e-49,
+    "Trend": 0.05040918445193893,
+    "ONI_lag12": 0.05163008897836128,
+    "PRCP_DEV_3m_lag0": 0.1043182865757933,
+    "TAVG_DEV_3m_lag0": 0.06072290471037984,
+    "month_2": 0.2079188873487839,
+    "month_3": 0.06797355727937739,
+    "month_4": 0.001010191605591364,
+    "month_5": 7.976853107253654e-06,
+    "month_6": 4.840859103707081e-05,
+    "month_7": 3.2322412734405076e-08,
+    "month_8": 9.96918825946422e-12,
+    "month_9": 2.3153764098243863e-12,
+    "month_10": 3.377928403999286e-14,
+    "month_11": 1.6911266054445806e-08,
+    "month_12": 0.00015222376653405668
+  },
+  "lead_validation": {
+    "test_window": "2024-01..2025-12",
+    "n_combinations": 150,
+    "selection_rule": "choose direction-consistent candidate: validation and final ONI coefficients < 0, validation and final PRCP coefficients > 0; then lowest final climate p-value, validation p-value, and lower RMSE",
+    "chosen_combo": "ONI 12m / PRCP 0m / TAVG 0m",
+    "chosen_test_rmse": 0.06200537932408917,
+    "chosen_train_climate_p_mean": 0.13427004995865596,
+    "chosen_final_climate_p_mean": 0.07222376008817814,
+    "chosen_agri_score": 3,
+    "pure_rmse_best_combo": "ONI 3m / PRCP 0m / TAVG 0m",
+    "pure_rmse_best_test_rmse": 0.039658696274549536,
+    "pure_rmse_best_rejected_reason": "ONI coefficient sign is not consistent with El Nino later reducing yield",
+    "results_csv": "code/model/lead_validation_results.csv"
+  }
+}
