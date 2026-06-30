@@ -28,6 +28,7 @@ from app.core import data as data_loader
 from app.core import forecast_update
 from app.core import llm as llm_service
 from app.core import predict_service
+from app.core import validation_service
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
@@ -378,6 +379,21 @@ async def update_climate_forecast(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"文件内容不符合要求：{exc}")
     return ForecastUpdateResponse(**result)
+
+
+# ── 模型验证摘要 ─────────────────────────────────────────────────────────────
+
+@app.get(
+    "/model-validation-summary",
+    summary="获取模型验证摘要（训练/验证窗口、指标对比、可用性判断）",
+    tags=["产量预测"],
+)
+def model_validation_summary():
+    """返回推荐模型的验证指标、模型对比、稳健性说明和可用性判断。"""
+    try:
+        return validation_service.load_validation_summary()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"验证摘要加载失败：{exc}")
 
 
 # ── 旧别名：保持前端 / 旧文档不返工（不在 docs 中显示）─────────────────────────

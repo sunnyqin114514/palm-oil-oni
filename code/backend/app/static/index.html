@@ -189,9 +189,16 @@
     <div class="result" id="predResult">选择月份，点击预测</div>
   </div>
 
-  <!-- 功能 3：更新 ECMWF 气候预测文件 -->
+  <!-- 功能 3：模型验证结果 -->
   <div class="card">
-    <h2>③ 更新天气预报文件</h2>
+    <h2>③ 模型验证结果</h2>
+    <div class="sub">训练窗口和验证窗口对比结果，证明模型可用。</div>
+    <div id="validationContent" style="font-size:13px; line-height:1.8; color:var(--muted);">加载中…</div>
+  </div>
+
+  <!-- 功能 4：更新 ECMWF 气候预测文件 -->
+  <div class="card">
+    <h2>④ 更新天气预报文件</h2>
     <div class="sub">
       有新的 ECMWF/Copernicus 天气预报文件时，可拖入下方更新模型所用的未来气候输入。
     </div>
@@ -306,15 +313,22 @@
     input.value = month;
     const box = document.getElementById('predResult');
     box.style.color = 'var(--neon-green)';
-    box.textContent = '模型计算中…';
+    box.textContent = '模型计算中…云端首次唤醒可能需要 30-50 秒，后续会快。';
+    const t0 = Date.now();
+    const slowTimer = setTimeout(() => {
+      box.textContent = '正在读取模型和气候数据，请稍等…';
+    }, 8000);
     try {
       const r = await fetch('/predict-production?target_month=' + encodeURIComponent(month));
+      clearTimeout(slowTimer);
       const d = await r.json();
       if (!r.ok) { throw new Error(apiErrorMessage(d.detail) || ('HTTP ' + r.status)); }
       renderPrediction(d);
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
       box.style.color = 'var(--neon-green)';
-      box.textContent = '✓ 预测完成。点击「AI 解读」获取中文分析。';
+      box.textContent = '✓ 预测完成，用时 ' + elapsed + ' 秒。点击「AI 解读」获取中文分析。';
     } catch (e) {
+      clearTimeout(slowTimer);
       box.style.color = 'var(--neon-magenta)';
       box.textContent = '✗ 预测失败：' + e;
     }
@@ -415,6 +429,38 @@
     } catch (e) {
       dot.className = 'dot offline';
       txt.textContent = '后端离线（请先启动服务）';
+    }
+  })();
+
+  // 加载模型验证摘要
+  (async function loadValidation() {
+    const box = document.getElementById('validationContent');
+    try {
+      const r = await fetch('/model-validation-summary');
+      const d = await r.json();
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const cmp = d.comparison || [];
+      const best = cmp.find(c => c.model === d.recommended_model) || {};
+      const base = cmp.find(c => c.model === 'M0_baseline') || {};
+      const imp = d.improvement || {};
+      box.innerHTML =
+        '<div style="margin-bottom:10px;">' +
+          '<span style="color:var(--neon-cyan);">推荐模型：</span>' + (d.recommended_model ?? '-') +
+          ' &nbsp;|&nbsp; <span style="color:var(--neon-cyan);">训练：</span>' + (d.train_window ?? '-').replace('..', ' ~ ') +
+          ' &nbsp;|&nbsp; <span style="color:var(--neon-cyan);">验证：</span>' + (d.test_window ?? '-').replace('..', ' ~ ') +
+        '</div>' +
+        '<table>' +
+          '<tr><th>指标</th><th>M0 旧基准</th><th>M2 最终模型</th><th>改善</th></tr>' +
+          '<tr><td>RMSE</td><td>' + (base.rmse ?? 0).toFixed(4) + '</td><td style="color:var(--neon-green)">' + (best.rmse ?? 0).toFixed(4) + '</td><td style="color:var(--neon-green)">↓ ' + (imp.rmse_reduction_pct ?? 0) + '%</td></tr>' +
+          '<tr><td>MAPE</td><td>' + (base.mape_pct ?? 0).toFixed(2) + '%</td><td style="color:var(--neon-green)">' + (best.mape_pct ?? 0).toFixed(2) + '%</td><td style="color:var(--neon-green)">↓ ' + (imp.mape_reduction_pct ?? 0) + ' pp</td></tr>' +
+          '<tr><td>方向命中率</td><td>' + ((base.dir_hit ?? 0) * 100).toFixed(1) + '%</td><td style="color:var(--neon-green)">' + ((best.dir_hit ?? 0) * 100).toFixed(1) + '%</td><td style="color:var(--neon-green)">↑ ' + (imp.dir_hit_gain_pct ?? 0) + ' pp</td></tr>' +
+          '<tr><td>样本外 R²</td><td>' + (base.test_r2 ?? 0).toFixed(3) + '</td><td style="color:var(--neon-green)">' + (best.test_r2 ?? 0).toFixed(3) + '</td><td></td></tr>' +
+        '</table>' +
+        '<div style="margin-top:10px; color:var(--neon-yellow); font-size:12px;">' +
+          '结论：' + (d.usability ?? '-') + '。' + (d.usability_note ?? '') +
+        '</div>';
+    } catch (e) {
+      box.textContent = '验证数据暂时无法加载';
     }
   })();
 </script>

@@ -9,9 +9,10 @@ from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-PKG = Path("_pkg/ONI_2026-06-29_Final_Research_Package")
-FIG = PKG / "02_Figures"
-OUT = PKG / "01_Report" / "Main_Brief_Report.docx"
+PKG = Path("_pkg/ONI_2026-06-30_Final_Research_Package")
+FIG_TEMP = Path("code/model/temp_research")
+FIG_MODEL = Path("code/model/figures")
+OUT = Path("reports/Main_Brief_Report.docx")
 
 
 def f(x, n=4):
@@ -196,19 +197,56 @@ def main():
         color=(0x66, 0x66, 0x66),
     )
 
-    # 6. Figures
-    add_heading(doc, "五、关键图")
-    add_figure(doc, FIG / "Fig1_Temperature_Window_Search.png",
+    # 6. Model usability validation
+    add_heading(doc, "五、最终模型可用性验证")
+    add_para(
+        doc,
+        "训练窗口：2010-01 ~ 2023-12（168个月，含 2010-2014 面积线性回推）\n"
+        "验证窗口：2024-01 ~ 2026-05（28个月，完全样本外）",
+    )
+    add_table(
+        doc,
+        ["指标", "M0 旧基准", "M2 最终模型", "改善幅度"],
+        [
+            ["RMSE（吨/公顷）", "0.0419", "0.0310", "↓ 26.0%"],
+            ["MAPE", "11.30%", "7.72%", "↓ 3.6 个百分点"],
+            ["方向命中率", "82.1%", "89.3%", "↑ 7.2 个百分点"],
+            ["样本外 R²", "0.142", "0.529", "↑ 显著"],
+        ],
+    )
+    add_para(
+        doc,
+        "可用性判断：可用。M2_spatial 在样本外 28 个月中，方向命中率达 89.3%，"
+        "平均绝对百分比误差仅 7.72%，适用于月度方向判断与相对强弱预测。"
+        "单月点值仍受 ECMWF 天气预报精度和成熟面积估算影响。",
+        bold=True,
+    )
+    add_para(
+        doc,
+        "稳健性说明：\n"
+        "• PRCP_DEV_3m 在最终模型中 p=0.018，显著。\n"
+        "• INTX_West_10m p=0.023，显著——温度的影响通过西马空间交互项体现。\n"
+        "• TAVG_DEV_10m 单独主效应 p=0.560（不显著），但作为交互项的组成部分保留。\n"
+        "• ONI_lag12 在最终模型里 p=0.332（显著性弱化），但保留为气候滞后基础项。\n"
+        "• 选择 full 变体（含 2010-2014 回推面积，168个月）而非 real 变体（仅 108 个月），"
+        "因为更长训练窗口使系数更稳定、泛化表现更优。",
+        size=10,
+        color=(0x44, 0x44, 0x44),
+    )
+
+    # 7. Figures
+    add_heading(doc, "六、关键图")
+    add_figure(doc, FIG_TEMP / "dim_a_window.png",
                "图1 积温窗口搜索：10个月窗口 β 最负、p 最小（最接近显著）")
-    add_figure(doc, FIG / "Fig2_Heat_Cold_Asymmetry.png",
+    add_figure(doc, FIG_TEMP / "dim_b_asymmetry.png",
                "图2 高温/低温非对称：高温项系数更负、p 更小，热胁迫影响更强")
-    add_figure(doc, FIG / "Fig3_Spatial_Interaction.png",
+    add_figure(doc, FIG_TEMP / "dim_c_spatial.png",
                "图3 空间交互方案对比：仅西马交互显著降低样本外 RMSE")
-    add_figure(doc, FIG / "Fig5_OOS_2024_2026_Detail.png",
+    add_figure(doc, FIG_MODEL / "model3d_oos_detail.png",
                "图4 2024-01~2026-05 样本外预测 vs 实际（M2_spatial/full）")
 
-    # 7. Closing
-    add_heading(doc, "六、一句话收尾")
+    # 8. Closing
+    add_heading(doc, "七、一句话收尾")
     add_para(
         doc,
         "本次升级的核心不是「换温度窗口」，而是发现温度的影响要通过与降水的空间交互（尤其是西马）才显著。"

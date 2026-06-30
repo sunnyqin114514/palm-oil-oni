@@ -85,13 +85,14 @@
 </div>
 
 <div class="hud legend">
+  <div class="note" style="color:var(--yellow); margin-bottom:6px; font-size:12px;">这张图展示「预测产量 + 各气候因子贡献」，不是价格图。</div>
   <div class="ax"><span class="swatch" style="background:#00f0ff"></span> 横轴 = 月份</div>
   <div class="ax"><span class="swatch" style="background:#29ff9c"></span> 柱高 = 预测产量（吨）</div>
   <div class="ax"><span class="swatch" style="background:#ffffff"></span> 柱身主色 = 当月主导影响因子</div>
-  <div class="ax"><span class="swatch" style="background:#4da3ff"></span> ONI 光带</div>
-  <div class="ax"><span class="swatch" style="background:#00f0ff"></span> 降水光带</div>
-  <div class="ax"><span class="swatch" style="background:#ff9f1c"></span> 10月温度光带</div>
-  <div class="ax"><span class="swatch" style="background:#ff2bd6"></span> 西马温×降交互光带</div>
+  <div class="ax"><span class="swatch" style="background:#4da3ff"></span> ONI 光带（厄尔尼诺贡献）</div>
+  <div class="ax"><span class="swatch" style="background:#00f0ff"></span> 降水光带（3月降水距平贡献）</div>
+  <div class="ax"><span class="swatch" style="background:#ff9f1c"></span> 温度光带（10月温度距平贡献）</div>
+  <div class="ax"><span class="swatch" style="background:#ff2bd6"></span> 西马温×降交互光带（空间复合贡献）</div>
   <div class="note" id="statText"></div>
   <div class="note">光带越高 = 贡献绝对值越大；前侧 = 拉高产量，后侧 = 拉低产量。</div>
   <div class="note">模型 = M2_spatial：ONI_lag12 + PRCP_DEV_3m + TAVG_DEV_10m + INTX_West_10m</div>
@@ -107,6 +108,7 @@
   </div>
   <div class="btnrow">
     <button id="reloadBtn">▶ 载入预测</button>
+    <button id="validationBtn" style="color:var(--yellow); border-color:var(--yellow);">验证期</button>
   </div>
   <label class="toggle"><input type="checkbox" id="spin" checked /> 自动旋转</label>
 </div>
@@ -184,6 +186,11 @@ let apiSource = "";
 
 init();
 document.getElementById("reloadBtn").addEventListener("click", () => init());
+document.getElementById("validationBtn").addEventListener("click", () => {
+  document.getElementById("startMonth").value = "2024-01";
+  document.getElementById("monthCount").value = "28";
+  init();
+});
 
 async function init() {
   const startInput = document.getElementById("startMonth");
@@ -191,7 +198,7 @@ async function init() {
   startInput.value = startMonth;
   const months = Math.min(24, Math.max(1, Number(document.getElementById("monthCount").value || 6)));
   statusEl.style.display = "block";
-  statusEl.textContent = "正在拉取预测数据…";
+  statusEl.textContent = "正在拉取预测数据…云端首次唤醒约 30-50 秒，后续会快。";
   cleanupScene();
 
   const url = "/predict-production-range?start_month=" + encodeURIComponent(startMonth)
@@ -414,20 +421,19 @@ function onPointerMove(event) {
 
 function showTooltip(x, y, row) {
   const c = row.contributions ?? {};
+  const domVal = row.factorValues[row.dominantFactor.key] ?? 0;
+  const direction = domVal >= 0 ? "拉高" : "拉低";
+  const conclusion = "本月主导" + direction + "因素：" + (row.dominantFactor?.label ?? '-');
   tooltipEl.innerHTML =
     '<div class="tt-month">' + row.target_month + '</div>' +
+    '<div style="color:var(--yellow); font-size:11px; margin-bottom:4px;">' + conclusion + '</div>' +
     '<div class="tt-row"><span class="tt-k">预测产量</span><span class="tt-v">' + Math.round(row.production).toLocaleString() + ' 吨</span></div>' +
     '<div class="tt-row"><span class="tt-k">预测单产</span><span class="tt-v">' + Number(row.predicted_yield ?? 0).toFixed(4) + ' 吨/公顷</span></div>' +
     '<div class="tt-row"><span class="tt-k">模型</span><span class="tt-v">' + (row.modelName ?? 'M2_spatial') + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">主导因子</span><span class="tt-v">' + (row.dominantFactor?.label ?? '-') + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">天气影响合计</span><span class="tt-v">' + row.climateScore.toFixed(5) + '</span></div>' +
     '<div class="tt-row"><span class="tt-k">ONI 贡献</span><span class="tt-v">' + Number(c.ONI ?? 0).toFixed(5) + '</span></div>' +
     '<div class="tt-row"><span class="tt-k">降水贡献</span><span class="tt-v">' + Number(c.PRCP ?? 0).toFixed(5) + '</span></div>' +
     '<div class="tt-row"><span class="tt-k">10月温度贡献</span><span class="tt-v">' + Number(c.TAVG ?? 0).toFixed(5) + '</span></div>' +
     '<div class="tt-row"><span class="tt-k">西马温×降贡献</span><span class="tt-v">' + Number(c.INTX_West ?? 0).toFixed(5) + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">PRCP_DEV_3m</span><span class="tt-v">' + Number(row.prcp3 ?? 0).toFixed(2) + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">TAVG_DEV_10m</span><span class="tt-v">' + Number(row.tavg10 ?? 0).toFixed(3) + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">INTX_West_10m</span><span class="tt-v">' + Number(row.intxWest10 ?? 0).toFixed(3) + '</span></div>' +
     '<div class="tt-row"><span class="tt-k">天气来源</span><span class="tt-v">' + (WEATHER_LABELS[row.weather_source] ?? row.weather_source ?? '-') + '</span></div>';
   tooltipEl.style.display = "block";
   tooltipEl.style.left = (x + 14) + "px";
