@@ -31,30 +31,10 @@
   .topbar a:hover { background: var(--magenta); color: #1a0214; }
   .legend {
     left: 18px; bottom: 18px; background: var(--panel); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px 14px; font-size: 12px; line-height: 1.8; max-width: 430px;
-    backdrop-filter: blur(4px);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; line-height: 1.75; max-width: 460px;
+    backdrop-filter: blur(4px); pointer-events: auto;
   }
-  .legend .ax { display: flex; align-items: center; gap: 8px; }
-  .legend .swatch { width: 18px; height: 3px; border-radius: 2px; }
-  .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
-  .legend .note { color: var(--muted); margin-top: 6px; font-size: 11px; }
-  .controls {
-    right: 18px; bottom: 18px; background: var(--panel); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px 14px; font-size: 12px; pointer-events: auto;
-    display: flex; flex-direction: column; gap: 10px; min-width: 260px; backdrop-filter: blur(4px);
-  }
-  .controls .inputs { display: grid; grid-template-columns: 1fr 70px; gap: 8px; }
-  .controls input[type=text], .controls input[type=number] {
-    background: #07101a; border: 1px solid var(--border); border-radius: 5px;
-    color: var(--text); padding: 7px 8px; font-family: inherit; font-size: 12px;
-  }
-  .controls .btnrow { display: flex; gap: 8px; }
-  .controls button {
-    flex: 1; background: transparent; color: var(--cyan); border: 1px solid var(--cyan);
-    border-radius: 5px; padding: 7px 0; font-family: inherit; font-size: 12px; cursor: pointer;
-  }
-  .controls button:hover { background: var(--cyan); color: #02121a; }
-  .controls .toggle { display: flex; align-items: center; gap: 6px; color: var(--text); cursor: pointer; }
+  .legend .note { color: var(--muted); font-size: 11px; }
   .status {
     top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center;
     color: var(--muted); font-size: 14px;
@@ -71,6 +51,58 @@
   .tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; }
   .tooltip .tt-k { color: var(--muted); }
   .tooltip .tt-v { color: var(--text); }
+
+  /* ── 紧凑顶栏右侧按钮组 ── */
+  .topbar-btns {
+    display: flex; align-items: center; gap: 8px; pointer-events: auto;
+  }
+  .yearbtn {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 4px; padding: 5px 12px; font-family: inherit; font-size: 12px; cursor: pointer;
+    transition: all .12s;
+  }
+  .yearbtn:hover { color: var(--cyan); border-color: var(--cyan); }
+  .yearbtn.active { color: var(--cyan); border-color: var(--cyan); background: rgba(0,240,255,0.1); }
+  .yearbtn.val { color: var(--yellow); border-color: var(--yellow); }
+  .yearbtn.val:hover, .yearbtn.val.active { background: rgba(255,230,0,0.1); }
+  .topbar-sep { width: 1px; height: 20px; background: var(--border); }
+  .spin-toggle {
+    display: flex; align-items: center; gap: 5px; color: var(--muted); cursor: pointer;
+    font-size: 11px; user-select: none;
+  }
+  .spin-toggle input { accent-color: var(--cyan); }
+
+  /* ── 生命周期条（内嵌到图例底部）── */
+  .lc-bar { display: flex; height: 14px; border-radius: 3px; overflow: hidden; gap: 2px; margin-top: 8px; }
+  .lc-seg {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: rgba(255,255,255,0.85); font-weight: bold; border-radius: 2px;
+  }
+  .lc-seg.train { background: #1a5276; }
+  .lc-seg.validate { background: #196f3d; }
+  .lc-seg.current { background: #7d3c98; }
+  .lc-seg.next { background: #922b21; border: 1px dashed #e74c3c; }
+  .lc-note { color: var(--yellow); font-size: 10px; margin-top: 5px; }
+
+  /* ── 因子详解表格 ── */
+  .factor-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+  .factor-table td { padding: 3px 6px; vertical-align: top; }
+  .factor-table td:first-child { white-space: nowrap; }
+  .factor-table tr:not(:last-child) td { border-bottom: 1px solid rgba(22,50,59,0.6); }
+
+  /* ── 图例折叠 ── */
+  .legend-header {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none; margin-bottom: 6px;
+  }
+  .legend-toggle {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 4px; padding: 1px 7px; font-size: 10px; cursor: pointer;
+    font-family: inherit; flex-shrink: 0; margin-left: 10px; transition: transform .2s;
+  }
+  .legend-toggle:hover { color: var(--cyan); border-color: var(--cyan); }
+  #legendBody { overflow: hidden; transition: max-height .25s ease; }
+  #legendBody.collapsed { max-height: 0 !important; }
 </style>
 </head>
 <body>
@@ -81,36 +113,76 @@
     <div class="title">棕榈油 3D 预测柱状图 · M2 三维模型</div>
     <div class="range" id="rangeText">加载中…</div>
   </div>
-  <a href="/">← 返回首页</a>
+  <div class="topbar-btns">
+    <button class="yearbtn" data-year="2024">2024</button>
+    <button class="yearbtn" data-year="2025">2025</button>
+    <button class="yearbtn active" data-year="2026">2026</button>
+    <button class="yearbtn val" id="validationBtn">验证期</button>
+    <div class="topbar-sep"></div>
+    <label class="spin-toggle"><input type="checkbox" id="spin" /> 旋转</label>
+    <div class="topbar-sep"></div>
+    <a href="/" style="color:var(--magenta); text-decoration:none; font-size:12px; border:1px solid var(--magenta); border-radius:5px; padding:5px 12px; white-space:nowrap;">← 首页</a>
+  </div>
 </div>
 
-<div class="hud legend">
-  <div class="note" style="color:var(--yellow); margin-bottom:6px; font-size:12px;">这张图展示「预测产量 + 各气候因子贡献」，不是价格图。</div>
-  <div class="ax"><span class="swatch" style="background:#00f0ff"></span> 横轴 = 月份</div>
-  <div class="ax"><span class="swatch" style="background:#29ff9c"></span> 柱高 = 预测产量（吨）</div>
-  <div class="ax"><span class="swatch" style="background:#ffffff"></span> 柱身主色 = 当月主导影响因子</div>
-  <div class="ax"><span class="swatch" style="background:#4da3ff"></span> ONI 光带（厄尔尼诺贡献）</div>
-  <div class="ax"><span class="swatch" style="background:#00f0ff"></span> 降水光带（3月降水距平贡献）</div>
-  <div class="ax"><span class="swatch" style="background:#ff9f1c"></span> 温度光带（10月温度距平贡献）</div>
-  <div class="ax"><span class="swatch" style="background:#ff2bd6"></span> 西马温×降交互光带（空间复合贡献）</div>
-  <div class="note" id="statText"></div>
-  <div class="note">光带越高 = 贡献绝对值越大；前侧 = 拉高产量，后侧 = 拉低产量。</div>
-  <div class="note">模型 = M2_spatial：ONI_lag12 + PRCP_DEV_3m + TAVG_DEV_10m + INTX_West_10m</div>
-</div>
+<!-- 隐藏的输入，保持 JS 兼容 -->
+<input id="startMonth" type="hidden" value="" />
+<input id="monthCount" type="hidden" value="12" />
 
-<div class="hud controls">
-  <div class="inputs">
-    <input id="startMonth" type="text" placeholder="2026-07" title="起始月份" />
-    <input id="monthCount" type="number" value="6" min="1" max="24" title="预测月数" />
+<div class="hud legend" id="legendCard">
+  <!-- 始终可见的标题行 + 折叠按钮 -->
+  <div class="legend-header" onclick="toggleLegend()">
+    <div style="display:flex; gap:14px; flex-wrap:wrap; font-size:12px; align-items:center;">
+      <span style="color:#4da3ff;">■ 左柱=实测</span>
+      <span style="color:#b061ff;">■ 右柱=预测</span>
+      <span style="color:#ffe600;">蓝紫差=模型误差</span>
+      <span style="color:#ffe600;">— 历史均值</span>
+      <span style="color:#29ff9c;">面积右=有利</span>
+      <span style="color:#ff5d73;">面积左=不利</span>
+      <span style="color:#00cfff;">■ ONI</span>
+      <span style="color:#44dd44;">■ 降水</span>
+      <span style="color:#ff8800;">■ 温度</span>
+      <span style="color:#cc55ff;">■ 西马交互</span>
+    </div>
+    <button class="legend-toggle" id="legendToggle">▼</button>
   </div>
-  <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:-6px;">
-    <span>起始月份</span><span>月数</span>
+
+  <!-- 可折叠主体 -->
+  <div id="legendBody" style="max-height:600px;">
+    <div style="font-size:11px; color:var(--cyan); margin-bottom:4px; letter-spacing:1px; margin-top:2px;">
+      主柱：每月<b style="color:#4da3ff;">蓝=实测</b>与<b style="color:#b061ff;">紫=模型预测</b>并排，柱高差=模型误差；地面面积图：因子<b style="color:#29ff9c;">右伸=有利</b>、<b style="color:#ff5d73;">左伸=不利</b>。
+    </div>
+    <table class="factor-table">
+      <tr>
+        <td><span style="color:#00cfff;">■</span> <b>ONI</b></td>
+        <td style="color:var(--muted);">厄尔尼诺指数（滞后 12 月）。ONI&gt;0（厄尔尼诺）→ 马来西亚干旱减产；ONI&lt;0（拉尼娜）→ 多雨增产。</td>
+      </tr>
+      <tr>
+        <td><span style="color:#44dd44;">■</span> <b>降水</b></td>
+        <td style="color:var(--muted);">近 3 月全国降水距平（mm）。持续干旱（负距平）→ 减产；正常或稍偏高 → 增产。</td>
+      </tr>
+      <tr>
+        <td><span style="color:#ff8800;">■</span> <b>温度</b></td>
+        <td style="color:var(--muted);">近 10 月全国气温距平（°C）。持续高温 → 热胁迫减产；偏低 → 轻微增产。</td>
+      </tr>
+      <tr>
+        <td><span style="color:#cc55ff;">■</span> <b>西马交互</b></td>
+        <td style="color:var(--muted);">西马温度×降水（10 月窗口）。温、降同向偏高或同向偏低时协同效应更强，正向交互 → 增产。</td>
+      </tr>
+    </table>
+
+    <div class="note" id="statText" style="margin-top:6px;"></div>
+    <div class="note" id="horizonNote" style="color:var(--cyan);"></div>
+
+    <div style="font-size:10px; color:var(--cyan); margin-top:8px; margin-bottom:3px;">模型生命周期</div>
+    <div class="lc-bar">
+      <div class="lc-seg train" style="flex:14;"><span>训练 2010–2023</span></div>
+      <div class="lc-seg validate" style="flex:2.8;"><span>验证 24–26</span></div>
+      <div class="lc-seg current" style="flex:1;"><span>2026</span></div>
+      <div class="lc-seg next" style="flex:1;"><span>2027</span></div>
+    </div>
+    <div class="lc-note" id="lcNote">2027 需要：下载 2026 全年 ONI、天气、产量数据 + 新 ECMWF 预报</div>
   </div>
-  <div class="btnrow">
-    <button id="reloadBtn">▶ 载入预测</button>
-    <button id="validationBtn" style="color:var(--yellow); border-color:var(--yellow);">验证期</button>
-  </div>
-  <label class="toggle"><input type="checkbox" id="spin" checked /> 自动旋转</label>
 </div>
 
 <div class="hud status" id="status">正在拉取预测数据…</div>
@@ -132,9 +204,7 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
 
 function defaultMonth() {
   const now = new Date();
-  let y = now.getFullYear(), m = now.getMonth() + 2;
-  if (m > 12) { m -= 12; y += 1; }
-  return y + "-" + String(m).padStart(2, "0");
+  return now.getFullYear() + "-01";
 }
 
 function normalizeMonthInput(raw) {
@@ -153,13 +223,17 @@ function apiErrorMessage(detail) {
   return "未知错误";
 }
 
+// 每个因子一对配色：绿系=有利于生长，红系=不利于生长；同因子用相近色相便于辨识占比
+// 四因子身份色：蓝(ONI/海温) 绿(降水) 橙(温度) 紫(交互)
+// fav = 贡献有利时用较亮版，unfav = 贡献不利时用较暗/互补版
 const FACTORS = [
-  { key: "ONI", label: "ONI", color: 0x4da3ff },
-  { key: "PRCP", label: "降水", color: 0x00f0ff },
-  { key: "TAVG", label: "10月温度", color: 0xff9f1c },
-  { key: "INTX_West", label: "西马温×降", color: 0xff2bd6 },
+  { key: "ONI",       label: "ONI",      fav: 0x00cfff, unfav: 0x005fa8 },
+  { key: "PRCP",      label: "降水",      fav: 0x44dd44, unfav: 0x1a6e1a },
+  { key: "TAVG",      label: "10月温度",  fav: 0xff8800, unfav: 0x993300 },
+  { key: "INTX_West", label: "西马温×降", fav: 0xcc55ff, unfav: 0x6611aa },
 ];
-const DEFAULT_BAR_COLOR = new THREE.Color(0x1f4e78);
+const OBS_COLOR = new THREE.Color(0x4da3ff);   // 已存在实测 = 蓝
+const PRED_COLOR = new THREE.Color(0xb061ff);  // 模型预测 = 紫
 const WEATHER_LABELS = {
   ecmwf_seasonal_forecast: "ECMWF 季节预报",
   ecmwf_with_baseline_fallback: "ECMWF + 历史常态补齐",
@@ -170,36 +244,92 @@ const WEATHER_LABELS = {
 
 const qs = new URLSearchParams(location.search);
 const initialStart = qs.get("start_month") ?? qs.get("start") ?? defaultMonth();
-const initialMonths = Number(qs.get("months") ?? 6);
+const initialMonths = Number(qs.get("months") ?? 12);
 document.getElementById("startMonth").value = normalizeMonthInput(initialStart);
 document.getElementById("monthCount").value = Math.min(24, Math.max(1, initialMonths));
 
 const statusEl = document.getElementById("status");
 const rangeText = document.getElementById("rangeText");
 const statText = document.getElementById("statText");
+const horizonNote = document.getElementById("horizonNote");
 const tooltipEl = document.getElementById("tooltip");
 
 let renderer = null, labelRenderer = null, scene = null, camera = null, animationId = null;
 let barMeshes = [], rowData = [], raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
 let hoveredIdx = -1;
 let apiSource = "";
+let yieldHist = null;  // /yield-history 结果（含历史同期均值、实测分界、领先期）
 
 init();
-document.getElementById("reloadBtn").addEventListener("click", () => init());
+
+// ── 图例折叠 ──────────────────────────────────────────────────
+window.toggleLegend = function() {
+  const body = document.getElementById("legendBody");
+  const btn  = document.getElementById("legendToggle");
+  const collapsed = body.classList.toggle("collapsed");
+  btn.textContent = collapsed ? "▶" : "▼";
+};
+
 document.getElementById("validationBtn").addEventListener("click", () => {
   document.getElementById("startMonth").value = "2024-01";
   document.getElementById("monthCount").value = "28";
+  document.querySelectorAll(".yearbtn").forEach(b => b.classList.remove("active"));
+  document.getElementById("validationBtn").classList.add("active");
   init();
 });
+
+document.querySelectorAll(".yearbtn[data-year]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const year = btn.dataset.year;
+    document.getElementById("startMonth").value = year + "-01";
+    document.getElementById("monthCount").value = "12";
+    document.querySelectorAll(".yearbtn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    init();
+  });
+});
+
+(async function loadLifecycle() {
+  try {
+    const r = await fetch("/data-freshness");
+    if (!r.ok) return;
+    const d = await r.json();
+    const note = document.getElementById("lcNote");
+    const missing = (d.sources || []).filter(s => !s.ready_for_current_year);
+    if (missing.length === 0) {
+      note.textContent = d.next_year + " 需要：下载 " + d.current_year + " 全年 ONI、天气、产量数据 + 新 ECMWF 预报";
+    } else {
+      note.textContent = d.current_year + " 缺失：" + missing.map(s => s.name).join("、") + "｜" + d.next_year + " 需全年数据更新";
+    }
+  } catch(e) {}
+})();
+
+// 'YYYY-MM' 字符串可直接比较（零填充）
+function monthLE(a, b) { return String(a) <= String(b); }
+
+async function loadYieldHistory() {
+  if (yieldHist) return yieldHist;
+  try {
+    const r = await fetch("/yield-history");
+    if (r.ok) yieldHist = await r.json();
+  } catch (e) { yieldHist = null; }
+  return yieldHist;
+}
 
 async function init() {
   const startInput = document.getElementById("startMonth");
   const startMonth = normalizeMonthInput(startInput.value || defaultMonth());
   startInput.value = startMonth;
-  const months = Math.min(24, Math.max(1, Number(document.getElementById("monthCount").value || 6)));
+  const months = Math.min(24, Math.max(1, Number(document.getElementById("monthCount").value || 12)));
   statusEl.style.display = "block";
-  statusEl.textContent = "正在拉取预测数据…云端首次唤醒约 30-50 秒，后续会快。";
+  statusEl.textContent = "正在拉取数据…云端首次唤醒约 30-50 秒，后续会快。";
   cleanupScene();
+
+  await loadYieldHistory();
+  const maxPredict = yieldHist?.max_predict_month ?? null;
+  const latestObs = yieldHist?.latest_observed_month ?? null;
+  const actual = yieldHist?.actual ?? {};
+  const seasonal = yieldHist?.seasonal_avg ?? {};
 
   const url = "/predict-production-range?start_month=" + encodeURIComponent(startMonth)
     + "&months=" + encodeURIComponent(months);
@@ -215,59 +345,95 @@ async function init() {
   }
 
   apiSource = data.source ?? "";
-  rowData = (data.rows || []).map((row) => {
+  const mapped = (data.rows || []).map((row) => {
     const c = row.contributions ?? {};
     const factorValues = Object.fromEntries(
       FACTORS.map((f) => [f.key, Number(c[f.key] ?? 0)])
     );
-    const climateScore = Object.values(factorValues).reduce((sum, v) => sum + Math.abs(v), 0);
     const dominantFactor = FACTORS.reduce((best, f) => (
       Math.abs(factorValues[f.key]) > Math.abs(factorValues[best.key]) ? f : best
     ), FACTORS[0]);
-    const model = row.model ?? {};
+    const ym = row.target_month;
+    const isObserved = (ym in actual) || (latestObs && monthLE(ym, latestObs));
+    const calMonth = Number(ym.slice(5));
     const inputs = row.inputs ?? {};
+    // 同时保留实测与预测两个值：
+    //   actualYield    = 该月已有实测（若无则 null）
+    //   predictedYield = 模型对该月的预测（任何月份都算）
+    // 每个月由「蓝实测柱 + 紫预测柱」并排展示；未来无实测月份只显示紫柱。
+    const actualYield = (ym in actual) ? Number(actual[ym]) : null;
+    const predictedYield = Number(row.predicted_yield ?? 0);
+    const errorAbs = actualYield != null ? (predictedYield - actualYield) : null;
+    const errorPct = (actualYield != null && actualYield !== 0)
+      ? (errorAbs / actualYield) * 100 : null;
     return {
       ...row,
-      climateScore,
       factorValues,
       dominantFactor,
+      isObserved,
+      actualYield,
+      predictedYield,
+      errorAbs,
+      errorPct,
+      seasonalYield: seasonal[String(calMonth)] != null ? Number(seasonal[String(calMonth)]) : null,
       production: Number(row.predicted_production_tonnes ?? 0),
-      modelName: model.model_name ?? "M2_spatial",
-      modelFeatures: model.features ?? [],
+      modelName: (row.model ?? {}).model_name ?? "M2_spatial",
       tavg10: Number(inputs.tavg_dev_10m ?? 0),
       prcp3: Number(inputs.prcp_dev_3m ?? 0),
       intxWest10: Number(inputs.intx_west_10m ?? 0),
     };
   });
 
+  // 领先期限制：未来月份只保留落在「最新ONI+12」内的；已实测月份始终保留
+  rowData = mapped.filter((row) => {
+    if (row.isObserved) return true;
+    if (!maxPredict) return true;
+    return monthLE(row.target_month, maxPredict);
+  });
+
   if (rowData.length === 0) {
-    statusEl.innerHTML = '<span class="err">该区间没有预测数据</span>';
+    statusEl.innerHTML = '<span class="err">该区间没有可显示数据（可能全部超出 ' + (maxPredict || '领先期') + '）</span>';
     return;
   }
+
+  const dropped = mapped.length - rowData.length;
+  if (horizonNote) {
+    horizonNote.textContent = "领先期至 " + (maxPredict || '-') + "（最新 ONI " + (yieldHist?.latest_oni_month || '-') + " + 12 月）"
+      + (dropped > 0 ? "｜已隐藏 " + dropped + " 个超期月份" : "");
+  }
+
   statusEl.style.display = "none";
   renderScene();
 }
 
 function renderScene() {
   const N = rowData.length;
-  const productions = rowData.map(d => d.production);
-  const maxP = Math.max(...productions);
-  const minP = Math.min(...productions);
-  const maxFactorAbs = Math.max(
-    0.000001,
-    ...rowData.flatMap((row) => Object.values(row.factorValues).map((v) => Math.abs(v)))
-  );
-  const start = rowData[0].target_month;
-  const end = rowData[N - 1].target_month;
+  // yMax 取「实测 / 预测 / 历史同期均值」三者最大值，保证双柱共用同一 y 尺度
+  const yieldVals = [];
+  rowData.forEach((d) => {
+    if (d.actualYield != null) yieldVals.push(d.actualYield);
+    if (d.predictedYield != null) yieldVals.push(d.predictedYield);
+  });
+  const seasonalVals = rowData.map(d => d.seasonalYield).filter(v => v != null);
+  const yMax = Math.max(0.0001, ...yieldVals, ...seasonalVals);
 
+  // 地面面积图缩放
+  let maxAbsFactor = 0.000001;
+  rowData.forEach((row) => FACTORS.forEach((f) => {
+    maxAbsFactor = Math.max(maxAbsFactor, Math.abs(row.factorValues[f.key] ?? 0));
+  }));
+
+  const start = rowData[0].target_month;
+  const end   = rowData[N - 1].target_month;
   const modelName = rowData[0]?.modelName ?? "M2_spatial";
   rangeText.textContent = start + " → " + end + " · 共 " + N + " 个月 · " + modelName;
-  statText.textContent = "产量范围 " + Math.round(minP).toLocaleString() + " ~ " + Math.round(maxP).toLocaleString() + " 吨 · " + (apiSource || "三维预测模型");
+  const predArr = rowData.map(d => d.predictedYield).filter(v => v != null);
+  statText.textContent = "预测单产范围 " + Math.min(...predArr).toFixed(3) + " ~ " + Math.max(...predArr).toFixed(3) + " t/ha · 双柱：蓝=实测 / 紫=预测";
 
   const app = document.getElementById("app");
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x05060a);
-  scene.fog = new THREE.FogExp2(0x05060a, 0.003);
+  scene.fog = new THREE.FogExp2(0x05060a, 0.0028);
 
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
 
@@ -283,102 +449,195 @@ function renderScene() {
   labelRenderer.domElement.style.pointerEvents = "none";
   app.appendChild(labelRenderer.domElement);
 
+  // ── 布局常量 ─────────────────────────────────────────────────────
+  // 设计：月份沿 X 轴排开，每月一个「月槽」，槽内并排放两根子柱：
+  //   左半：蓝柱 = 实测单产（若无实测则不画）
+  //   右半：紫柱 = 模型预测单产（始终画）
+  // 蓝紫柱高差 = 模型误差（导师可直接从图形上读出）。
+  // 地面（y≈0 平面）保留天气因子填充面积图：正→+Z（右）有利，负→−Z（左）不利。
+  const SUB_W      = 1.7;     // 单根子柱宽度
+  const SUB_GAP    = 0.5;     // 蓝/紫子柱之间的小缝
+  const SLOT_W     = SUB_W * 2 + SUB_GAP;  // 月槽整体宽度 ≈ 3.9
+  const BAR_DEPTH  = 2.2;     // 子柱在 Z 方向厚度
+  const BAR_GAP    = 5.2;     // 月间间距
+  const MAX_HEIGHT = 32;
+  const Z_MAX      = 26;      // 面积图单侧最大伸展（Z 方向）
+  const yToH = (y) => (y / yMax) * MAX_HEIGHT;
+
+  const zScale = Z_MAX / maxAbsFactor;
+
+  const totalWidth = N * SLOT_W + (N - 1) * BAR_GAP;
+  const startX = -totalWidth / 2 + SLOT_W / 2;
+  const cxOf = (i) => startX + i * (SLOT_W + BAR_GAP);
+  // 子柱中心的 x 偏移（相对月槽中心）
+  const OFF_ACTUAL = -(SUB_W + SUB_GAP) / 2;   // 蓝柱在左
+  const OFF_PRED   =  (SUB_W + SUB_GAP) / 2;   // 紫柱在右
+
+  // ── 约束 OrbitControls：限制旋转，确保左右语义不翻转 ──
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.8;
-  controls.target.set(0, 12, 0);
+  controls.enableDamping  = true;
+  controls.dampingFactor  = 0.08;
+  controls.target.set(0, 10, 0);
+  controls.minAzimuthAngle = -Math.PI * 0.48;  // 水平旋转 ±86°（接近侧视，但不越过 90° 翻转左右）
+  controls.maxAzimuthAngle =  Math.PI * 0.48;
+  controls.minPolarAngle   =  0.05;            // 几乎可俯视到顶
+  controls.maxPolarAngle   =  Math.PI / 2.02;  // 几乎可平视到水平
+  controls.autoRotate      = false;
+  const spinEl = document.getElementById("spin");
+  if (spinEl) {
+    controls.autoRotate = spinEl.checked;
+    spinEl.onchange = (e) => { controls.autoRotate = e.target.checked; };
+  }
 
-  document.getElementById("spin").onchange = (e) => { controls.autoRotate = e.target.checked; };
-
-  const BAR_WIDTH = 4;
-  const BAR_GAP = 3;
-  const totalWidth = N * BAR_WIDTH + (N - 1) * BAR_GAP;
-  const startX = -totalWidth / 2 + BAR_WIDTH / 2;
-  const MAX_HEIGHT = 36;
-
-  const grid = new THREE.GridHelper(totalWidth + 30, N + 4, 0x16323b, 0x0c1c24);
-  grid.position.y = 0;
+  const grid = new THREE.GridHelper(totalWidth + 40, N + 8, 0x16323b, 0x0c1c24);
   scene.add(grid);
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(30, 50, 40);
+  dirLight.position.set(20, 70, 40);
   scene.add(dirLight);
 
   barMeshes = [];
+  const seasonalPts = [];
+  let boundaryX = null;
+
+  const addMainBar = (i, xOffset, height, colorVec, tagKey) => {
+    const geo = new THREE.BoxGeometry(SUB_W, height, BAR_DEPTH);
+    const mat = new THREE.MeshPhongMaterial({
+      color: colorVec, emissive: colorVec, emissiveIntensity: 0.3,
+      transparent: true, opacity: 0.92,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(cxOf(i) + xOffset, height / 2, 0);
+    mesh.userData = { idx: i, kind: tagKey };  // kind: "actual" | "predicted"
+    scene.add(mesh);
+    barMeshes.push(mesh);
+    return mesh;
+  };
 
   for (let i = 0; i < N; i++) {
     const row = rowData[i];
-    const heightNorm = maxP === minP ? 0.5 : (row.production - minP) / (maxP - minP);
-    const barH = 2 + heightNorm * MAX_HEIGHT;
-    const x = startX + i * (BAR_WIDTH + BAR_GAP);
-    const dominantValue = row.factorValues[row.dominantFactor.key] ?? 0;
-    const color = Math.abs(dominantValue) > 0 ? new THREE.Color(row.dominantFactor.color) : DEFAULT_BAR_COLOR;
+    const cx  = cxOf(i);
 
-    const geo = new THREE.BoxGeometry(BAR_WIDTH, barH, BAR_WIDTH);
-    const mat = new THREE.MeshPhongMaterial({
-      color: color,
-      emissive: color,
-      emissiveIntensity: 0.32,
-      transparent: true,
-      opacity: 0.88,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, barH / 2, 0);
-    mesh.userData = { idx: i };
-    scene.add(mesh);
-    barMeshes.push(mesh);
+    // ── 左侧蓝柱：实测单产（若有）──
+    if (row.actualYield != null) {
+      const hA = Math.max(0.6, yToH(row.actualYield));
+      addMainBar(i, OFF_ACTUAL, hA, OBS_COLOR, "actual");
+    }
 
+    // ── 右侧紫柱：模型预测单产（始终）──
+    const hP = Math.max(0.6, yToH(row.predictedYield ?? 0));
+    addMainBar(i, OFF_PRED, hP, PRED_COLOR, "predicted");
+
+    // 历史同期均值采样点（用月槽中心）
+    if (row.seasonalYield != null)
+      seasonalPts.push(new THREE.Vector3(cx, yToH(row.seasonalYield), 0));
+
+    // 月份标签（居中在月槽下方）——用「有实测/无实测」区分标记
+    const hasActual = row.actualYield != null;
+    const labelColor = hasActual ? "#4da3ff" : "#b061ff";
     const labelDiv = document.createElement("div");
-    labelDiv.style.cssText = "font-size:10px; color:" + color.getStyle() + "; text-align:center; pointer-events:none; text-shadow: 0 0 6px " + color.getStyle() + ";";
-    labelDiv.innerHTML = row.target_month.slice(5) + "月<br><span style='font-size:9px; opacity:0.78;'>" + row.dominantFactor.label + "</span>";
+    labelDiv.style.cssText = "font-size:10px; color:" + labelColor + "; text-align:center; pointer-events:none; text-shadow:0 0 6px " + labelColor + ";";
+    labelDiv.innerHTML = row.target_month.slice(5) + "月<br><span style='font-size:8px; opacity:0.8;'>"
+      + (hasActual ? "实测+预测" : "仅预测") + "</span>";
     const labelObj = new CSS2DObject(labelDiv);
-    labelObj.position.set(x, -2, 0);
+    labelObj.position.set(cx, -3.5, 0);
     scene.add(labelObj);
 
-    const stripOffsets = [-1.35, -0.45, 0.45, 1.35];
-    const stripMaxH = MAX_HEIGHT * 0.48;
-    FACTORS.forEach((f, j) => {
-      const value = row.factorValues[f.key] ?? 0;
-      const absNorm = Math.min(1, Math.abs(value) / maxFactorAbs);
-      const stripH = 0.35 + absNorm * stripMaxH;
-      const stripColor = new THREE.Color(f.color);
-      const stripGeo = new THREE.BoxGeometry(0.34, stripH, 0.34);
-      const stripMat = new THREE.MeshPhongMaterial({
-        color: stripColor,
-        emissive: stripColor,
-        emissiveIntensity: 0.55,
-        transparent: true,
-        opacity: 0.28 + absNorm * 0.62,
-      });
-      const strip = new THREE.Mesh(stripGeo, stripMat);
-      const signZ = value >= 0 ? 1 : -1;
-      strip.position.set(x + stripOffsets[j], stripH / 2, signZ * (BAR_WIDTH / 2 + 0.72));
-      scene.add(strip);
+    // 「有实测对比区 → 纯预测区」的边界（第一个无实测月）
+    if (boundaryX === null && row.actualYield == null && i > 0 && rowData[i - 1].actualYield != null)
+      boundaryX = cx - (SLOT_W + BAR_GAP) / 2;
+  }
+
+  // ── 地面填充面积图：每个因子一条带符号的填充带 ──
+  // z>0（右）=该因子当月有利；z<0（左）=不利；颜色=因子身份色
+  FACTORS.forEach((f, fi) => {
+    const pts = rowData.map((row, i) => ({
+      x: cxOf(i),
+      z: (row.factorValues[f.key] ?? 0) * zScale,
+    }));
+    addAreaRibbon(scene, pts, f.fav, 0.15 + fi * 0.12);
+  });
+
+  // 因子图例锚点（在最左月外侧地面竖一排小色块标签）
+  {
+    const lx = startX - SLOT_W - 6;
+    FACTORS.forEach((f, fi) => {
+      const tag = document.createElement("div");
+      tag.style.cssText = "font-size:10px; color:#" + f.fav.toString(16).padStart(6, "0") + "; white-space:nowrap; text-shadow:0 0 5px rgba(0,0,0,0.8);";
+      tag.textContent = "■ " + f.label;
+      const obj = new CSS2DObject(tag);
+      obj.position.set(lx, 2 + fi * 3.2, 0);
+      scene.add(obj);
     });
   }
 
+  // ── 中央基准线（z=0，沿 X，区分左右）──
+  addAxisLine(scene, new THREE.Vector3(startX - SLOT_W, 0.05, 0), new THREE.Vector3(cxOf(N - 1) + SLOT_W, 0.05, 0), 0x9fb3c0);
+
+  // ── 历史同期均值线（黄，沿 X）──
+  if (seasonalPts.length >= 2) {
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(seasonalPts);
+    scene.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffe600 })));
+    seasonalPts.forEach((p) => {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffe600 }));
+      s.position.copy(p); scene.add(s);
+    });
+    const slDiv = document.createElement("div");
+    slDiv.style.cssText = "font-size:10px; color:#ffe600; text-shadow:0 0 6px #ffe600;";
+    slDiv.textContent = "历史同期均值";
+    const slLabel = new CSS2DObject(slDiv);
+    slLabel.position.copy(seasonalPts[seasonalPts.length - 1].clone().add(new THREE.Vector3(2.5, 2, 0)));
+    scene.add(slLabel);
+  }
+
+  // ── 实测/预测分界面（垂直于 X 的半透明板）──
+  if (boundaryX !== null) {
+    const planeH = MAX_HEIGHT + 6;
+    const planeD = 2 * Z_MAX + 6;
+    const pg = new THREE.PlaneGeometry(planeD, planeH);
+    const pm = new THREE.MeshBasicMaterial({ color: 0xffe600, transparent: true, opacity: 0.10, side: THREE.DoubleSide });
+    const plane = new THREE.Mesh(pg, pm);
+    plane.rotation.y = Math.PI / 2;
+    plane.position.set(boundaryX, planeH / 2, 0);
+    scene.add(plane);
+    const bDiv = document.createElement("div");
+    bDiv.style.cssText = "font-size:11px; color:#ffe600; text-shadow:0 0 8px #ffe600; white-space:nowrap;";
+    bDiv.innerHTML = "← 蓝紫对比区 ┊ 仅预测 →";
+    const bLabel = new CSS2DObject(bDiv);
+    bLabel.position.set(boundaryX, planeH + 2, 0);
+    scene.add(bLabel);
+  }
+
+  // ── 左/右方向标签 ──
+  const rightLabelDiv = document.createElement("div");
+  rightLabelDiv.style.cssText = "font-size:11px; color:#29ff9c; text-shadow:0 0 6px #29ff9c; white-space:nowrap;";
+  rightLabelDiv.innerHTML = "有利 ▶<br><span style='font-size:8px;opacity:.8'>推高产量</span>";
+  const rightLabel = new CSS2DObject(rightLabelDiv);
+  rightLabel.position.set(cxOf(N - 1) + SLOT_W + 2, 1, Z_MAX * 0.85);
+  scene.add(rightLabel);
+
+  const leftLabelDiv = document.createElement("div");
+  leftLabelDiv.style.cssText = "font-size:11px; color:#ff5d73; text-shadow:0 0 6px #ff5d73; white-space:nowrap;";
+  leftLabelDiv.innerHTML = "◀ 不利<br><span style='font-size:8px;opacity:.8'>压低产量</span>";
+  const leftLabel = new CSS2DObject(leftLabelDiv);
+  leftLabel.position.set(cxOf(N - 1) + SLOT_W + 2, 1, -Z_MAX * 0.85);
+  scene.add(leftLabel);
+
+  // ── 坐标轴：X（月份）+ Y（单产）──
   const axLenX = totalWidth / 2 + 8;
   addAxisLine(scene, new THREE.Vector3(-axLenX, 0, 0), new THREE.Vector3(axLenX, 0, 0), 0x00f0ff);
-  addAxisLine(scene, new THREE.Vector3(-axLenX, 0, 0), new THREE.Vector3(-axLenX, MAX_HEIGHT + 8, 0), 0x29ff9c);
+  addAxisLine(scene, new THREE.Vector3(-axLenX, 0, 0), new THREE.Vector3(-axLenX, MAX_HEIGHT + 4, 0), 0x29ff9c);
 
   const yLabelDiv = document.createElement("div");
   yLabelDiv.style.cssText = "font-size:11px; color:#29ff9c; text-shadow:0 0 6px #29ff9c;";
-  yLabelDiv.textContent = "产量 ↑";
+  yLabelDiv.textContent = "单产 t/ha ↑";
   const yLabel = new CSS2DObject(yLabelDiv);
-  yLabel.position.set(-axLenX - 2, MAX_HEIGHT + 10, 0);
+  yLabel.position.set(-axLenX - 3, MAX_HEIGHT + 6, 0);
   scene.add(yLabel);
 
-  const xLabelDiv = document.createElement("div");
-  xLabelDiv.style.cssText = "font-size:11px; color:#00f0ff; text-shadow:0 0 6px #00f0ff;";
-  xLabelDiv.textContent = "月份 →";
-  const xLabel = new CSS2DObject(xLabelDiv);
-  xLabel.position.set(axLenX + 3, -2, 0);
-  scene.add(xLabel);
-
-  camera.position.set(totalWidth * 0.6, MAX_HEIGHT * 1.1, totalWidth * 0.9);
+  // 相机：正前方偏上俯视，使月份 X 轴水平、地面面积图清晰可见
+  camera.position.set(0, MAX_HEIGHT * 2.1, totalWidth * 0.62 + Z_MAX);
   controls.update();
 
   window.onresize = () => {
@@ -397,6 +656,45 @@ function renderScene() {
     labelRenderer.render(scene, camera);
   }
   animate();
+}
+
+function addSeg(s, x, yCenter, z, h, colorHex) {
+  const col = new THREE.Color(colorHex);
+  const geo = new THREE.BoxGeometry(2.6, h, 2.6);
+  const mat = new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.5, transparent: true, opacity: 0.92 });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, yCenter, z);
+  s.add(m);
+}
+
+// 地面填充面积带：pts=[{x, z}]（z 带符号，+右有利/−左不利），在 y=yLevel 平面填充 z=0 基线与 z 曲线之间
+function addAreaRibbon(s, pts, colorHex, yLevel) {
+  if (!pts || pts.length < 2) return;
+  const positions = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    // 四边形 (a.x,0)-(a.x,a.z)-(b.x,b.z)-(b.x,0) 拆成两三角
+    positions.push(a.x, yLevel, 0,   a.x, yLevel, a.z,   b.x, yLevel, b.z);
+    positions.push(a.x, yLevel, 0,   b.x, yLevel, b.z,   b.x, yLevel, 0);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshBasicMaterial({
+    color: colorHex, transparent: true, opacity: 0.5,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  s.add(new THREE.Mesh(geo, mat));
+}
+
+// 侧柱段：宽度可指定（保留兼容，当前未使用）
+function addSideBar(s, x, yCenter, z, h, w, colorHex) {
+  const col = new THREE.Color(colorHex);
+  const geo = new THREE.BoxGeometry(w, h, w);
+  const mat = new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, transparent: true, opacity: 0.88 });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, yCenter, z);
+  s.add(m);
 }
 
 function onPointerMove(event) {
@@ -421,19 +719,54 @@ function onPointerMove(event) {
 
 function showTooltip(x, y, row) {
   const c = row.contributions ?? {};
-  const domVal = row.factorValues[row.dominantFactor.key] ?? 0;
-  const direction = domVal >= 0 ? "拉高" : "拉低";
-  const conclusion = "本月主导" + direction + "因素：" + (row.dominantFactor?.label ?? '-');
+  // 气候利弊汇总
+  let pos = 0, neg = 0;
+  FACTORS.forEach((f) => { const v = row.factorValues[f.key] ?? 0; if (v >= 0) pos += v; else neg += -v; });
+  const net = pos - neg;
+  const total = pos + neg || 1;
+  const netWord = net >= 0 ? "净有利" : "净不利";
+  const dom = row.dominantFactor;
+  const domVal = row.factorValues[dom.key] ?? 0;
+  const domWord = domVal >= 0 ? "有利" : "不利";
+  const conclusion = "本月气候" + netWord + "；主因「" + (dom?.label ?? '-') + "」" + domWord;
+
+  const factorRows = FACTORS.map((f) => {
+    const v = row.factorValues[f.key] ?? 0;
+    const share = (Math.abs(v) / total * 100).toFixed(0);
+    const col = v >= 0 ? "#29ff9c" : "#ff5d73";
+    const sign = v >= 0 ? "利" : "弊";
+    return '<div class="tt-row"><span class="tt-k">' + f.label + '</span>'
+      + '<span class="tt-v" style="color:' + col + '">' + sign + ' ' + v.toFixed(5) + '（占 ' + share + '%）</span></div>';
+  }).join("");
+
+  // ── 蓝紫双柱对比区块：实测 vs 预测，误差 = 预测 − 实测 ──
+  const hasActual = row.actualYield != null;
+  const predStr = Number(row.predictedYield ?? 0).toFixed(4);
+  let compareRows = "";
+  if (hasActual) {
+    const errAbs = row.errorAbs;
+    const errPct = row.errorPct;
+    const errCol = Math.abs(errPct ?? 0) <= 10 ? "#29ff9c" : "#ff5d73";
+    compareRows =
+      '<div class="tt-row"><span class="tt-k">实际单产（蓝）</span><span class="tt-v" style="color:#4da3ff">' + Number(row.actualYield).toFixed(4) + ' t/ha</span></div>' +
+      '<div class="tt-row"><span class="tt-k">预测单产（紫）</span><span class="tt-v" style="color:#b061ff">' + predStr + ' t/ha</span></div>' +
+      '<div class="tt-row"><span class="tt-k">误差 = 预测 − 实际</span><span class="tt-v" style="color:' + errCol + '">' + (errAbs >= 0 ? '+' : '') + errAbs.toFixed(4) + ' t/ha</span></div>' +
+      '<div class="tt-row"><span class="tt-k">误差率</span><span class="tt-v" style="color:' + errCol + '">' + (errPct >= 0 ? '+' : '') + errPct.toFixed(2) + '%</span></div>';
+  } else {
+    compareRows =
+      '<div class="tt-row"><span class="tt-k">预测单产（紫）</span><span class="tt-v" style="color:#b061ff">' + predStr + ' t/ha</span></div>' +
+      '<div class="tt-row"><span class="tt-k">实际单产</span><span class="tt-v" style="color:var(--muted)">未来月份，暂无实测</span></div>';
+  }
+
   tooltipEl.innerHTML =
-    '<div class="tt-month">' + row.target_month + '</div>' +
+    '<div class="tt-month">' + row.target_month + '（' + (hasActual ? '实测+预测对比' : '仅预测') + '）</div>' +
     '<div style="color:var(--yellow); font-size:11px; margin-bottom:4px;">' + conclusion + '</div>' +
-    '<div class="tt-row"><span class="tt-k">预测产量</span><span class="tt-v">' + Math.round(row.production).toLocaleString() + ' 吨</span></div>' +
-    '<div class="tt-row"><span class="tt-k">预测单产</span><span class="tt-v">' + Number(row.predicted_yield ?? 0).toFixed(4) + ' 吨/公顷</span></div>' +
-    '<div class="tt-row"><span class="tt-k">模型</span><span class="tt-v">' + (row.modelName ?? 'M2_spatial') + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">ONI 贡献</span><span class="tt-v">' + Number(c.ONI ?? 0).toFixed(5) + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">降水贡献</span><span class="tt-v">' + Number(c.PRCP ?? 0).toFixed(5) + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">10月温度贡献</span><span class="tt-v">' + Number(c.TAVG ?? 0).toFixed(5) + '</span></div>' +
-    '<div class="tt-row"><span class="tt-k">西马温×降贡献</span><span class="tt-v">' + Number(c.INTX_West ?? 0).toFixed(5) + '</span></div>' +
+    compareRows +
+    (row.seasonalYield != null ? '<div class="tt-row"><span class="tt-k">历史同期均值</span><span class="tt-v">' + Number(row.seasonalYield).toFixed(4) + ' t/ha</span></div>' : '') +
+    '<div class="tt-row"><span class="tt-k">对应总产量（按预测）</span><span class="tt-v">' + Math.round(row.production).toLocaleString() + ' 吨</span></div>' +
+    '<div style="border-top:1px solid #16323b; margin:5px 0 4px;"></div>' +
+    '<div style="color:var(--muted); font-size:11px; margin-bottom:2px;">气候因子（利/弊 + 占比）</div>' +
+    factorRows +
     '<div class="tt-row"><span class="tt-k">天气来源</span><span class="tt-v">' + (WEATHER_LABELS[row.weather_source] ?? row.weather_source ?? '-') + '</span></div>';
   tooltipEl.style.display = "block";
   tooltipEl.style.left = (x + 14) + "px";

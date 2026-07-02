@@ -171,6 +171,9 @@
         天气数据优先用 ECMWF 季节预报，缺失则回退历史同期均值（基准情形）。
       </div>
     </details>
+    <div id="horizonHint" style="margin-bottom:12px; font-size:12px; line-height:1.7; color:var(--neon-yellow); border:1px dashed rgba(255,230,0,0.4); border-radius:6px; padding:8px 12px;">
+      正在读取可预测范围…
+    </div>
     <div class="inputs">
       <label>目标月份 (YYYY-MM)
         <input id="predMonth" type="text" placeholder="2026-07" />
@@ -196,9 +199,16 @@
     <div id="validationContent" style="font-size:13px; line-height:1.8; color:var(--muted);">加载中…</div>
   </div>
 
-  <!-- 功能 4：更新 ECMWF 气候预测文件 -->
+  <!-- 功能 4：数据更新流水线 -->
+  <div class="card" id="pipelineCard">
+    <h2>④ 数据更新流水线</h2>
+    <div class="sub">自动检测各数据源就绪状态。绿勾=已就绪，红叉=需更新。</div>
+    <div id="pipelineContent" style="font-size:13px; line-height:1.8; color:var(--muted);">检测中…</div>
+  </div>
+
+  <!-- 功能 5：更新 ECMWF 气候预测文件 -->
   <div class="card">
-    <h2>④ 更新天气预报文件</h2>
+    <h2>⑤ 更新天气预报文件</h2>
     <div class="sub">
       有新的 ECMWF/Copernicus 天气预报文件时，可拖入下方更新模型所用的未来气候输入。
     </div>
@@ -361,7 +371,8 @@
     const input = document.getElementById('predMonth');
     const month = normalizeMonthInput(input.value || defaultMonth());
     input.value = month;
-    window.open('/3d?start_month=' + encodeURIComponent(month) + '&months=6', '_blank');
+    const year = month.slice(0, 4);
+    window.open('/3d?start_month=' + encodeURIComponent(year + '-01') + '&months=12', '_blank');
   }
 
   async function uploadForecastFile(file) {
@@ -429,6 +440,61 @@
     } catch (e) {
       dot.className = 'dot offline';
       txt.textContent = '后端离线（请先启动服务）';
+    }
+  })();
+
+  // 加载可预测范围（领先期）说明
+  (async function loadHorizon() {
+    const box = document.getElementById('horizonHint');
+    if (!box) return;
+    try {
+      const r = await fetch('/yield-history');
+      const d = await r.json();
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      box.innerHTML =
+        '<b>可预测范围逻辑：</b>模型最长的领先信号是 <b>ONI 滞后 12 个月</b>（厄尔尼诺提前约 1 年影响油棕）。' +
+        '当前 ONI 数据更新至 <b>' + (d.latest_oni_month ?? '-') + '</b>，因此最远可预测到 <b>' + (d.max_predict_month ?? '-') + '</b>。<br>' +
+        '已存在实测产量到 <b>' + (d.latest_observed_month ?? '-') + '</b>：之前的月份为真实数据，之后为模型预测。' +
+        '3D 图中<span style="color:#4da3ff;">蓝柱=实测</span>、<span style="color:#b061ff;">紫柱=预测</span>，超出领先期的未来月份不显示。';
+    } catch (e) {
+      box.textContent = '可预测范围暂时无法加载';
+    }
+  })();
+
+  // 加载数据流水线
+  (async function loadPipeline() {
+    const box = document.getElementById('pipelineContent');
+    try {
+      const r = await fetch('/data-freshness');
+      const d = await r.json();
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const sources = d.sources || [];
+      let html = '<div style="margin-bottom:10px;">' +
+        '<span style="color:var(--neon-cyan);">当前年份：</span>' + d.current_year +
+        ' &nbsp;|&nbsp; <span style="color:var(--neon-cyan);">下一年：</span>' + d.next_year +
+        ' &nbsp;|&nbsp; 当年就绪：' +
+        (d.current_year_ready
+          ? '<span style="color:var(--neon-green);">✓ 全部就绪</span>'
+          : '<span style="color:var(--neon-magenta);">✗ 部分缺失</span>') +
+        '</div>';
+      html += '<table><tr><th>数据源</th><th>最新可用</th><th>状态</th><th>下一年需要</th></tr>';
+      sources.forEach(s => {
+        const icon = s.ready_for_current_year
+          ? '<span style="color:var(--neon-green);">✓</span>'
+          : '<span style="color:var(--neon-magenta);">✗</span>';
+        html += '<tr>' +
+          '<td><a href="' + s.url + '" target="_blank" style="color:var(--neon-cyan); text-decoration:none;">' + s.name + '</a></td>' +
+          '<td>' + s.latest_available + '</td>' +
+          '<td>' + icon + '</td>' +
+          '<td style="font-size:11px; color:var(--muted);">' + s.needed_for_next_year + '</td>' +
+          '</tr>';
+      });
+      html += '</table>';
+      html += '<div style="margin-top:10px; padding:8px 12px; background:#07101a; border:1px dashed var(--neon-yellow); border-radius:6px; font-size:11px; color:var(--neon-yellow);">' +
+        '可持续性：' + d.next_year_instructions + '</div>';
+      box.innerHTML = html;
+    } catch (e) {
+      box.textContent = '流水线数据暂时无法加载';
     }
   })();
 

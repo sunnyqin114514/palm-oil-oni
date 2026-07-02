@@ -26,9 +26,11 @@ from pydantic import BaseModel
 
 from app.core import data as data_loader
 from app.core import forecast_update
+from app.core import freshness_service
 from app.core import llm as llm_service
 from app.core import predict_service
 from app.core import validation_service
+from app.core import yield_history_service
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
@@ -394,6 +396,36 @@ def model_validation_summary():
         return validation_service.load_validation_summary()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"验证摘要加载失败：{exc}")
+
+
+# ── 数据新鲜度检测 ─────────────────────────────────────────────────────────────
+
+@app.get(
+    "/data-freshness",
+    summary="检测各数据源新鲜度与下一年预测所需数据",
+    tags=["产量预测"],
+)
+def data_freshness():
+    """返回各数据源最新可用日期、当年预测就绪状态、下一年所需数据清单。"""
+    try:
+        return freshness_service.get_data_freshness()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"数据新鲜度检测失败：{exc}")
+
+
+@app.get(
+    "/yield-history",
+    summary="历史同期平均单产、实测逐月单产、动态预测视界",
+    tags=["产量预测"],
+)
+def yield_history():
+    """给 3D 图用：历史同期均值线、实测(蓝)/预测(紫)分界、领先期(最新ONI+12)。"""
+    try:
+        return yield_history_service.load_yield_history()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=500, detail=f"单产历史数据缺失：{exc}")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"单产历史加载失败：{exc}")
 
 
 # ── 旧别名：保持前端 / 旧文档不返工（不在 docs 中显示）─────────────────────────
