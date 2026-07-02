@@ -34,9 +34,11 @@ def load_validation_summary() -> dict:
     features = weights.get("features", [])
     feature_notes = weights.get("feature_notes", {})
 
-    full_models = [r for r in metrics_rows if r["variant"] == "full"]
+    # 对比表格必须和推荐模型用同一个 variant（如 real），否则会出现
+    # 表头写着 real 但对比数字混入 full 变体的错配。
+    same_variant_models = [r for r in metrics_rows if r["variant"] == variant]
     comparison = []
-    for row in full_models:
+    for row in same_variant_models:
         comparison.append({
             "model": row["model"],
             "rmse": _flt(row.get("test_rmse")),
@@ -68,10 +70,16 @@ def load_validation_summary() -> dict:
         robustness.append(f"TAVG_DEV_10m p={p_values['TAVG_DEV_10m']:.4f} (通过交互项间接显著)")
 
     usability = "可用"
-    usability_note = (
-        "M2_spatial 相比旧基准 RMSE 下降约 26%、MAPE 下降约 32%、方向命中率提升 7.2 个百分点。"
-        "适用于月度方向判断与相对强弱预测；单月点值仍受天气预报精度影响。"
-    )
+    if baseline and best:
+        usability_note = (
+            f"{recommended}（{variant} 变体）相比 M0 旧基准 RMSE 下降约 "
+            f"{improvement.get('rmse_reduction_pct', 0)}%、MAPE 下降 "
+            f"{improvement.get('mape_reduction_pct', 0)} 个百分点、方向命中率提升 "
+            f"{improvement.get('dir_hit_gain_pct', 0)} 个百分点。"
+            "适用于月度方向判断与相对强弱预测；单月点值仍受天气预报精度影响。"
+        )
+    else:
+        usability_note = "适用于月度方向判断与相对强弱预测；单月点值仍受天气预报精度影响。"
 
     return {
         "recommended_model": recommended,
